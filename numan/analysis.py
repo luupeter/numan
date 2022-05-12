@@ -162,9 +162,25 @@ class Spot:
     def __repr__(self):
         return self.__str__()
 
-    def mask_at_zero(self):
+    def mask_at_zero(self, diameter=None, units='pix'):
+        """
+        diameter : list or numpy array or int, diameter in zyx order. If int, then it is a sphere.
+                    If not None, diameter will be used to create a mask.
+                    If None, then spots diameter will be used and units will be ignored.
+        units: what units is the diameter in : 'pix' or 'phs'
+        """
 
-        d = self.diameter['pix']
+        if diameter is None:
+            d = self.diameter['pix']
+        else:
+            if isinstance(diameter, int):
+                diameter = np.array([1, 1, 1]) * diameter
+            else:
+                diameter = np.array(diameter)
+            if units == 'phs':
+                diameter = np.round(diameter / self.resolution)
+            d = diameter
+
         r = d / 2  # radius
         # make sure diameter is odd: round to the next odd number
         d = ((d // 2) * 2 + 1).astype(np.int)
@@ -188,10 +204,14 @@ class Spot:
 
         return mask, centered_idx
 
-    def create_mask(self, volumes):
+    def create_mask(self, volumes, diameter=None, units='pix'):
         """
         Creates a binary mask that can be applied to the volume.
-        volumes : sequence of volumes in shape TZYX or one volume in ZYX
+        volumes : image as a sequence of volumes in shape TZYX or one volume in ZYX
+        diameter : list or numpy array or int, diameter in zyx order. If int, then it is a sphere.
+                    If not None, diameter will be used to create a mask.
+                    If None, then spots diameter will be used and units will be ignored.
+        units: what units is the diameter in : 'pix' or 'phs'
         """
         # create mask for a single volume
         if len(volumes.shape) == 4:
@@ -199,11 +219,11 @@ class Spot:
         elif len(volumes.shape) == 3:
             zmax, ymax, xmax = volumes.shape
         else:
-            raise AssertionError("volumes should be 4D tzyx or 3d zyx")
+            raise AssertionError("volumes should be 4D tzyx or 3D zyx")
         mask = np.zeros((zmax, ymax, xmax))
 
         # get list of nonzero elements , centered at zero
-        _, idx = self.mask_at_zero()
+        _, idx = self.mask_at_zero(diameter=diameter, units=units)
 
         # shift to center
         shift = self.center['pix']
@@ -378,11 +398,29 @@ class Spots:
         """
 
         self.spots = spots
+        self.num_spots = len(self.spots)
         self.signals = signals
         # TODO : have signals as dict with " raw" , " dff" etc
         self.groups = None
         if groups is not None:
             self.add_groups(groups)
+
+    def __str__(self):
+
+        groups = "No"
+        if self.groups is not None:
+            groups = self.groups.keys()
+
+        signals = "not loaded"
+        if self.signals is not None:
+            signals = "loaded"
+
+        return f"{self.num_spots} spots\n " \
+               f"{groups} groups\n" \
+               f"Signals {signals}"
+
+    def __repr__(self):
+        return self.__str__()
 
     def add_groups(self, groups):
         """
@@ -490,15 +528,25 @@ class Spots:
 
         return cls(spots, groups=None, signals=None)
 
-    def get_group_mask(self, group, mask_shape):
+    def get_signals(self, volumes=None, experiment=None, batch_size=None, movie=None, traces_type="raw", reload=False):
+        assert reload or self.signals is None, "Spots already have signals loaded, reload? "
+
+        self.signals = Signals.from_spots(self.spots, volumes=volumes, experiment=experiment,
+                                          batch_size=batch_size, movie=movie, traces_type=traces_type)
+
+    def get_group_mask(self, group, mask_shape, diameter=None, units='pix'):
         """
         Create a 3D volume that only shows the spots that belong to the particular group
         group : list[bool], the length of spots
         mask_shape : the shape of the 3D volume of the mask
+        diameter : list or numpy array or int, diameter in zyx order. If int, then it is a sphere.
+                    If not None, diameter will be used to create a mask.
+                    If None, then spots diameter will be used and units will be ignored.
+        units: what units is the diameter in : 'pix' or 'phs'
         """
         mask = np.zeros(mask_shape)
         for ispot in tqdm(np.where(group)[0]):
-            imask, _ = self.spots[ispot].create_mask(mask)
+            imask, _ = self.spots[ispot].create_mask(mask, diameter=diameter, units=units)
             mask = mask + imask
         return mask
 
@@ -509,11 +557,25 @@ class Spots:
         traces = self.signals.traces[:, group]
         return Signals(traces, traces_type=self.signals.traces_type)
 
-    def get_signals(self, volumes=None, experiment=None, batch_size=None, movie=None, traces_type="raw", reload=False):
-        assert reload or self.signals is None, "Spots already have signals loaded, reload? "
+    def get_group_idx(self, group):
+        """
+        Returns indices for a particular group only
+        """
+        idx = np.arange(self.num_spots)
+        idx = idx[group]
+        return idx
 
-        self.signals = Signals.from_spots(self.spots, volumes=volumes, experiment=experiment,
-                                          batch_size=batch_size, movie=movie, traces_type=traces_type)
+    def get_group_centers(self, group, units='pix'):
+        """
+        Returns centers for a particular group only
+        units: the units of the center to return
+        """
+        centers = []
+        for ispot, spot in enumerate(self.spots):
+            if group[ispot]:
+                centers.append(spot.center[units])
+
+        return np.array(centers)
 
 
 class SignalPlotter:
@@ -552,7 +614,7 @@ class SignalPlotter:
         """
         Keep in mind - assign colors in alphabetic order of the condition name.
         """
-
+        # TODO : for now it fits 3 different colors only! fix it!
         fig = plt.figure(figsize=(10, 5))
         ax = fig.add_subplot(111)
         names, values, img = self.plot_labels(ax)
