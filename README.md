@@ -5,7 +5,7 @@ abilities in zebrafish. The broad project aims to test the hypothesis that the a
 Numan contains only the analysis tools and relies on [vodex](https://github.com/LemonJust/vodex) for data management.
 
 <p align="center">
-  <img src="img/cover.jpg" alt="cover" width="600"/>
+  <img src="img/cover.JPG" alt="cover" width="600"/>
 </p>
 Schematic of the analysis pipeline used for numerosity-stimuli experiments. The image shows an experiment with two conditions: visual stimuli "2" and "5".
 ## Installation
