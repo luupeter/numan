@@ -92,6 +92,29 @@ def get_diff(movie1, movie2, absolute=False):
     return diff
 
 
+def plot_errorbar(ax, mean, e, x=None):
+    if x is None:
+        x = np.arange(len(mean))
+    ax.errorbar(x, mean, yerr=e, fmt='o', color='r')
+    ax.plot(x, mean, color='r')
+
+
+def get_ax_limits(cycled, mean, e, plot_individual):
+    """
+    Figures out the tight x and y axis limits
+    """
+    if plot_individual:
+        ymin = np.min(cycled)
+        ymax = np.max(cycled)
+    else:
+        ymin = np.min(mean - e[1, :])
+        ymax = np.max(mean + e[0, :])
+    xmin = -0.5
+    xmax = cycled.shape[1] - 0.5
+
+    return xmin, xmax, ymin, ymax
+
+
 class Spot:
     """
     This is a class for a n individual segmented spot.
@@ -341,17 +364,9 @@ class Signals:
 
     def get_looped(self, trace, experiment, time_points=None, error_type="prc"):
         """
-
-        Parameters
-        ----------
-        error_type
-        trace : trace id
-        experiment
-        time_points
-
-        Returns
-        -------
-
+        Returns signals looped per cycle
+        time_points: time points of the cycle. If you only need certain time-points from the cycle ( in volumes )
+        if you need to stack timepoints for each cycle, for example: [[0,1,2],[7,8,9]], pass the time_points as 2D list.
         """
 
         n_cycles = experiment.full_cycles
@@ -364,17 +379,32 @@ class Signals:
                                                     "by which I mean that plot_looped function needs more code :), " \
                                                     "Sorry. Hint : use time_points "
         cycled = self.traces[:, trace].reshape((n_cycles, int(cycle_length)))
+
+        # crop out the necessary cycle part,
+        # note: you can reorder the cycle as well ( to add points from the beginning  to the end of the cycle)
+        # you can also overlay some cycle time intervals, useful for psh
+        if time_points is not None:
+            time_points = np.array(time_points)
+            time_shape = time_points.shape
+            assert len(time_shape) < 3, "time_shape should be 1D or 2D"
+            cycled = cycled[:, time_points.flatten()]
+            # if you want to overlay cycle intervals:
+            if len(time_shape) == 2:
+                cycled = cycled.reshape(-1, time_shape[1])
+
         mean = np.mean(cycled, axis=0)
 
         if error_type == "prc":
             # error bars : 5 to 95 th percentile around the median
             e = np.r_[np.expand_dims(mean - np.percentile(cycled, 5, axis=0), axis=0),
                       np.expand_dims(np.percentile(cycled, 95, axis=0) - mean, axis=0)]
-        if error_type == "sem":
+        elif error_type == "sem":
             # error bars : sem around hte mean
             sem = np.std(cycled, axis=0, ddof=1) / np.sqrt(cycled.shape[0])
             e = np.r_[np.expand_dims(sem, axis=0),
                       np.expand_dims(sem, axis=0)]
+        else:
+            e = None
 
         return cycled, mean, e
 
@@ -593,13 +623,24 @@ class SignalPlotter:
         self.experiment = experiment
         self.n_signals = self.signals.traces.shape[1]
 
-    def plot_labels(self, ax, extent=None, front_to_tail=None):
-        # timing in volumes
+    def plot_labels(self, ax, extent=None, time_points=None, front_to_tail=None):
+        # timing in volumes, since one volume is one time point of the signal
         timing = (self.experiment.cycle.timing / self.experiment.volume_manager.fpv).astype(np.int)
+        # get condition name for each time point of the signal
         conditions = [cond for t, condition in zip(timing, self.experiment.cycle.conditions) for cond in
                       [condition.name] * t]
-        # return_inverse gives the integer encoding
+        # encode unique names into intengers, return_inverse gives the integer encoding
         names, values = np.unique(conditions, return_inverse=True)
+
+        if time_points is not None:
+            time_points = np.array(time_points)
+            time_shape = time_points.shape
+            assert len(time_shape) < 3, "time_shape should be 1D or 2D"
+            if len(time_shape) == 2:
+                time_points = time_points[0, :]
+            # take only the relevant part of the condition labels
+            values = values[time_points]
+
         if front_to_tail is not None:
             old_order = np.arange(len(values))
             new_order = np.r_[old_order[front_to_tail:], old_order[0:front_to_tail]]
@@ -607,6 +648,7 @@ class SignalPlotter:
 
         img = ax.imshow(values[np.newaxis, :], aspect='auto',
                         extent=extent, cmap=plt.get_cmap('Greys', len(names)))
+        img.set_clim(0, len(names) - 1)
 
         return names, values, img
 
@@ -627,28 +669,14 @@ class SignalPlotter:
         cbar = plt.colorbar(img, ax=ax, ticks=[0.5, 1, 1.5], orientation='horizontal')
         cbar.ax.set_xticklabels(names)
 
-    def show_psh(self, traces, main_title, tittles, error_type="prc", plot_individual=True,
-                 front_to_tail=None, figure_layout=None, figsize=None,
-                 ylabel='', xlabel='', noise_color='--c', dpi=160):
+    def show_psh(self, traces, main_title, tittles, error_type="prc", time_points=None,
+                 plot_individual=True, front_to_tail=None,
+                 figure_layout=None, figsize=None,
+                 ylabel='', xlabel='', noise_color='--c', vlines=None, signal_split=None,
+                 dpi=160):
         """
         front_to_tail : how many cycle points to attach from front to tail
         """
-
-        def plot_errorbar(ax, mean, e):
-            ax.errorbar(np.arange(len(mean)), mean, yerr=e, fmt='o', color='r')
-            ax.plot(mean, color='r')
-
-        def get_ax_limits(cycled, mean, e, plot_individual):
-            if plot_individual:
-                ymin = np.min(cycled)
-                ymax = np.max(cycled)
-            else:
-                ymin = np.min(mean - e[1, :])
-                ymax = np.max(mean + e[0, :])
-            xmin = -0.5
-            xmax = cycled.shape[1] - 0.5
-
-            return xmin, xmax, ymin, ymax
 
         if figure_layout is not None:
             n_rows = figure_layout[0]
@@ -664,7 +692,8 @@ class SignalPlotter:
         axes = axes.flatten()
         fig.suptitle(main_title)
         for plot_id, trace in enumerate(traces):
-            cycled, mean, e = self.signals.get_looped(trace, self.experiment, error_type=error_type)
+            cycled, mean, e = self.signals.get_looped(trace, self.experiment, error_type=error_type,
+                                                      time_points=time_points)
 
             if front_to_tail is not None:
                 old_order = np.arange(len(mean))
@@ -676,12 +705,23 @@ class SignalPlotter:
 
             ax = axes[plot_id]
             xmin, xmax, ymin, ymax = get_ax_limits(cycled, mean, e, plot_individual)
-            names, _, img = self.plot_labels(ax, extent=[xmin, xmax, ymin, ymax], front_to_tail=front_to_tail)
+            names, _, img = self.plot_labels(ax, extent=[xmin, xmax, ymin, ymax],
+                                             time_points=time_points,
+                                             front_to_tail=front_to_tail)
 
-            if plot_individual:
-                ax.plot(cycled.T, noise_color, alpha=0.3)
+            # if you wish to not connect certain groups of signals
+            if signal_split is not None:
+                for signal_group in signal_split:
+                    if plot_individual:
+                        ax.plot(signal_group, cycled[:, signal_group].T, noise_color, alpha=0.3)
+                    plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group)
+            else:
+                if plot_individual:
+                    ax.plot(cycled.T, noise_color, alpha=0.3)
+                plot_errorbar(ax, mean, e)
 
-            plot_errorbar(ax, mean, e)
+            if vlines is not None:
+                ax.vlines(vlines, ymin, ymax, linestyle=(0, (5, 10)), color='black')
 
             ax.set_title(tittles[plot_id])
             ax.set_xlim((xmin, xmax))
