@@ -309,7 +309,8 @@ class Signals:
         return Signals(dff, traces_type="dff")
 
     @classmethod
-    def from_spots(cls, spots, volumes=None, experiment=None, batch_size=None, movie=None, traces_type="raw"):
+    def from_spots(cls, spots, volumes=None, experiment=None, batch_size=None, movie=None,
+                   verbose=False, traces_type="raw"):
         """
         Extracts signals from volumes for each spot in spots.
         spots : list[Spot]
@@ -333,6 +334,7 @@ class Signals:
 
         N = len(spots)
 
+        design_matrix = None
         # if volumes are given explicitly as a movie
         if movie is not None:
             T = movie.shape[0]
@@ -343,7 +345,6 @@ class Signals:
         elif volumes is not None and experiment is not None:
             T = len(volumes)
             design_matrix = np.zeros((T, N))
-
             # split volumes into batches of certain size
             if batch_size is not None:
                 btcs = np.array_split(volumes, np.ceil(T / batch_size))
@@ -353,9 +354,11 @@ class Signals:
             t_start = 0
             for batch in btcs:
                 t_end = t_start + len(batch)
-                print(f"Batch {batch}, t_start {t_start}, t_end {t_end}")
-
-                movie = experiment.volume_manager.load_volumes(batch)
+                if verbose:
+                    print(f"Batch {batch}, t_start {t_start}, t_end {t_end}")
+                # load a batch from disk
+                movie = experiment.volume_manager.load_volumes(batch, show_progress=True)
+                # extract signals for all the spots from the loaded chunk
                 design_matrix = fill_signal(design_matrix, movie, t_start, t_end)
 
                 t_start = t_end
