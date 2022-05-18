@@ -1,7 +1,7 @@
 # Processing pipeline for an experiment with 3 visual stimuli
 A set of notebooks customized for an experiment with 3 visual stimuli : 2, 3, and 5 dots on the screen , separated by a blank screen.
 
-Requires numan version 0.0.3, and vodex version 0.0.3 too ...
+Requires numan version 0.0.4, and vodex version 0.0.4 too ...
 upgrade the packages if you have older versions with :
 ```
 pip install --upgrade vodex
@@ -58,14 +58,14 @@ processed
 │       │   └───tscore_2v5_Statistics
 │       │       │     ...
 │       │   └───...
-│   └───signals  <-------------------------------------- (DONE in 03) json files with the extracted signals, also will have the group info after you added it
+│   └───signals  <-------------------------------------- (DONE in 03 and 04) json files with the extracted signals, also will have the group info after you added it
 │       │   spots_2v3.json
 │       │   spots_3v5.json
 │       │   spots_2v5.json
 │       │     ...
 └───reports  <------------------------------------------ tiffs and pdf with the cells and signals found
-│   └───all_significant  <------------------------------ (DONE in 04) tiffs and pdf with all significant cells per group
-│       │   └───signals  <------------------------------ pdfs with signals
+│   └───all_significant  <------------------------------ tiffs and pdf with all significant cells per group
+│       │   └───signals  <------------------------------ (DONE in 05) pdfs with signals
 │       │       │     significant_2v3.pdf
 │       │       │     significant_3v5.pdf
 │       │       │     ...
@@ -73,7 +73,7 @@ processed
 │       │       │     significant_2v3.tif
 │       │       │     significant_3v5.tif
 │       │       │     ...
-│   └───groupped  <------------------------------------- (DONE in 05) tiffs and pdf where the cells are groupped based on signal shape .. or anything else you want
+│   └───groupped  <------------------------------------- tiffs and pdf where the cells are groupped based on signal shape .. or anything else you want
 │       │   readme.txt  <------------------------------- ATTENTION : you need to describe the groups
 │       │   └───signals  <------------------------------ pdfs with signals
 │       │       │     shape1_2v3.pdf
