@@ -508,19 +508,23 @@ class Spots:
 
         return np.array(centers)
 
-    def get_group_info(self, group_list):
+    def get_group_info(self, group_list, group = None):
         """
         Returns a string with the titles of the groups from group_list, where each spot is a member.
+        group = the T/F list ... If group is not None: only returns it for the group.
         """
         group_info = []
         for ispot, spot in enumerate(self.spots):
             groups = ""
-            for group in group_list:
-                if self.groups[group][ispot]:
-                    groups = groups + group + "; "
+            for group_name in group_list:
+                if self.groups[group_name][ispot]:
+                    groups = groups + group_name + "; "
             group_info.append(groups)
+        group_info = np.array(group_info)
+        if group is not None:
+            group_info = group_info[group]
+        return group_info
 
-        return np.array(group_info)
 
 class SignalAnalyzer:
 
