@@ -1,7 +1,7 @@
 # Processing pipeline for an experiment with 3 visual stimuli
 A set of notebooks customized for an experiment with 3 visual stimuli : 2, 3, and 5 dots on the screen , separated by a blank screen.
 
-Requires numan version 0.0.4, and vodex version 0.0.4 too ...
+Requires numan version 0.0.5, and vodex version 0.0.5 too ...
 upgrade the packages if you have older versions with :
 ```
 pip install --upgrade vodex
@@ -12,10 +12,10 @@ Run these notebooks in order, read the comments :)
 Notebooks 01, 02, 03 do the preprocessing and take a pretty long time to run .. the rest of the notebooks produces nice plots and cell masks...
 
 Will create the following file structure :
+
 ```
 processed
-│   experiment.json <----------------------------------- (DONE in 01) the file that contains everything about the experiment, you are creating it once and will be reusing ever after
-│   experiment_dff.json <------------------------------- (DONE in 01) everything about the experiment, but loads from the dff movie, not from the raw data
+│   experiment.json <----------------------------------- (DONE in 01) the file that contains everything about the experiment, you are creating it once at the beginning of the processing and reusing ever after
 └───dff_movie  <---------------------------------------- (DONE in 01) the dff movie :)
 │   │   dff_movie_0000.tif
 │   │   dff_movie_0001.tif
@@ -33,12 +33,12 @@ processed
 │       │   tscore_3vB.tif
 │   └───5vB
 │       │   tscore_5vB.tif
-│   └───BvB
+│   └───BvB1
 │       │   tscore_BvB1.tif
+│   └───BvB2
 │       │   tscore_BvB2.tif
+│   └───BvB3
 │       │   tscore_BvB3.tif
-│       │   tscore_BvB4.tif
-│       │   tscore_BvB5.tif
 └───diff_volumes  <------------------------------------- (DONE in 02) absolute difference tif files per pair
 │   └───2v3
 │       │   diff_2v3.tif
@@ -58,39 +58,21 @@ processed
 │       │   └───tscore_2v5_Statistics
 │       │       │     ...
 │       │   └───...
-│   └───signals  <-------------------------------------- (DONE in 03 and 04) json files with the extracted signals, also will have the group info after you added it
+│   └───signals  <-------------------------------------- (DONE and UPDATED in 03 04 05 ) json files with the extracted signals, also will have the group info after you added it
 │       │   spots_2v3.json
 │       │   spots_3v5.json
 │       │   spots_2v5.json
 │       │     ...
-└───reports  <------------------------------------------ tiffs and pdf with the cells and signals found
-│   └───all_significant  <------------------------------ tiffs and pdf with all significant cells per group
-│       │   └───signals  <------------------------------ (DONE in 05) pdfs with signals
-│       │       │     significant_2v3.pdf
-│       │       │     significant_3v5.pdf
-│       │       │     ...
-│       │   └───images <-------------------------------- tif masks
-│       │       │     significant_2v3.tif
-│       │       │     significant_3v5.tif
-│       │       │     ...
-│   └───groupped  <------------------------------------- tiffs and pdf where the cells are groupped based on signal shape .. or anything else you want
-│       │   readme.txt  <------------------------------- ATTENTION : you need to describe the groups
-│       │   └───signals  <------------------------------ pdfs with signals
-│       │       │     shape1_2v3.pdf
-│       │       │     shape2_2v3.pdf
-│       │       │     shape3_2v3.pdf
-│       │       │     ...
-│       │       │     shape1_3v5.pdf
-│       │       │     shape2_3v5.pdf
-│       │       │     shape3_3v5.pdf
-│       │       │     ...
-│       │   └───images  <------------------------------ tif masks
-│       │       │     shape1_2v3.tif
-│       │       │     shape2_2v3.tif
-│       │       │     shape3_2v3.tif
-│       │       │     ...
-│       │       │     shape1_3v5.tif
-│       │       │     shape2_3v5.tif
-│       │       │     shape3_3v5.tif
-│       │       │     ...
+│       └───reports  <---------------------------------- tiffs and pdf with the cells significant in any pairwise comparison
+│       │   └───all_significant  <---------------------- tiffs and pdf with all significant cells per group
+│       │       │   └───signals  <---------------------- (DONE in 05) pdfs with signals
+│       │       │       │     ...
+│       │       │   └───images <------------------------ tif masks
+│       │       │       │     ...
+│       │   └───groupped  <----------------------------- tiffs and pdf where the cells are groupped based on signal shape .. or anything else you want
+│       │       │   readme.txt  <----------------------- ATTENTION : you need to describe the groups
+│       │       │   └───signals  <---------------------- pdfs with signals
+│       │       │       │     ...
+│       │       │   └───images  <----------------------- tif masks
+│       │       │       │     ...
 ```
