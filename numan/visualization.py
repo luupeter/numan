@@ -12,6 +12,14 @@ import PyPDF2
 from .analysis import *
 from .utils import *
 
+def sort_by_len0(zip_to_sort):
+    """
+    Sorts the zip based on the length and alphabet of the first element in zip_to_sort
+    """
+    # sorts a list based on the length of the first element in zip
+    sorted_zip = sorted(zip_to_sort, key=lambda x: (len(x[0])), reverse=True)
+    return sorted_zip
+
 class SignalPlotter:
     """
     All the plotting functions.
@@ -119,11 +127,11 @@ class SignalPlotter:
                     plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group)
             else:
                 if plot_individual:
-                    ax.plot(cycled.T, noise_color, alpha=0.3)
+                    ax.plot(cycled.T, noise_color, alpha=0.4, linewidth = 1)
                 plot_errorbar(ax, mean, e)
 
             if vlines is not None:
-                ax.vlines(vlines, ymin, ymax, linewidth=0.2, color='black')  # , linestyle=(0, (5, 10))
+                ax.vlines(vlines, ymin, ymax, linewidth=0.8, color='black')  # , linestyle=(0, (5, 10))
 
             ax.set_title(tittles[plot_id])
             ax.set_xlim((xmin, xmax))
@@ -146,45 +154,95 @@ class Reports:
         self.project = project_folder
         self.experiment = experiment
 
-    def make_reports_psh_0(self, spot_tag):
+    def make_signal_reports(self, spot_tag, group_tag,
+                     plot_type = "cycle",
+                     plot_type_tag = '',
+                     front_to_tail=0,
+                     time_points=None,
+                     vlines=None,
+                     signal_split=None,
+                     error_type="sem",
+                     noise_color='--c',
+                     plot_individual=False,
+                     sort_by_sig = False):
+        """
+        plot_type: "cycle", "psh_b", "psh_0"
+        """
+
         spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
+        # where to temporary store images while the code is running
+        tmp_folder = f"{self.project}/spots/reports/all_significant/signals/"
+        # filename to save pdf with all the significant traces
+        pdf_filename = f"{self.project}/spots/reports/all_significant/signals/" \
+                       f"{plot_type}{plot_type_tag}_from_{spot_tag}_significance_{group_tag}.pdf"
 
-        group_tags = ["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"]
-        for group_tag in group_tags:
+        # initialise the signal plotter
+        SLIDING_WINDOW = 15  # in volumes
+        significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+        sp = SignalPlotter(significant_signals_dff, self.experiment)
 
-            # where to temporary store images while the cell is running
-            tmp_folder = f"{self.project}/spots/reports/all_significant/signals/"
-            # filename to save pdf with all the significant traces
-            pdf_filename = f"{self.project}/spots/reports/all_significant/signals/" \
-                           f"PSH_0_from_{spot_tag}_significance_{group_tag}.pdf"
+        # some info on the cells to put into the title
+        cells_idx = spots.get_group_idx(spots.groups[group_tag])
+        cells_zyx = spots.get_group_centers(spots.groups[group_tag]).astype(np.int32)
+        cells_group = spots.get_group_info(["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"],
+                                           group=spots.groups[group_tag])
+        cells_group = np.array([group_name.replace("sig", "") for group_name in cells_group])
+        signal_idx = np.arange(sp.n_signals)
 
-            # initialise the signal plotter
-            SLIDING_WINDOW = 15  # in volumes
-            significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
-            sp = SignalPlotter(significant_signals_dff, self.experiment)
+        if sort_by_sig:
+            # sort everything so that the cells with the most amount of significant stuff appear first
+            sorted_zip = sort_by_len0(zip(cells_group, cells_idx, cells_zyx, signal_idx))
+            cells_group = np.array([el[0] for el in sorted_zip])
+            cells_idx = np.array([el[1] for el in sorted_zip])
+            cells_zyx = np.array([el[2] for el in sorted_zip])
+            signal_idx = np.array([el[3] for el in sorted_zip])
 
-            # some info on the cells to put into the title
-            cells_idx = spots.get_group_idx(spots.groups[group_tag])
-            cells_zyx = spots.get_group_centers(spots.groups[group_tag]).astype(np.int32)
-            cells_group = spots.get_group_info(group_tags)[spots.groups[group_tag]]
-            main_title = f"DFF signals, tscore image {spot_tag}, significance {group_tag}"
+        main_title = f"DFF signals, tscore image {spot_tag}, significance {group_tag}"
 
-            # plotting parameters
+        if plot_type == "psh_0":
             tpp = 10  # traces per page
-            # prepare the batches per page
-            cells = np.arange(sp.n_signals)
-            btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(sp.n_signals / tpp).astype(int)) * tpp]
+        else:
+            tpp = 5
+        # prepare the batches per page
+        cells = np.arange(sp.n_signals)
+        btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(sp.n_signals / tpp).astype(int)) * tpp]
+        pdfs = []
 
-            pdfs = []
-            for ibtch, btch in enumerate(btchs):
+        for ibtch, btch in enumerate(btchs):
+
+            if plot_type == "cycle":
                 # titles for the current batch
-                titles = [f"Cell {idx}, {group} \nXYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel)"
+                titles = [f"Cell {idx}, {group} XYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
                           for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
-                sp.show_psh(btch,
+
+                sp.show_psh(signal_idx[btch],
+                            main_title,
+                            titles,
+                            # front_to_tail will shift the cycleby the set number of voxels
+                            # so when set to 3, there are 3 blank volumes at the begining and at the end ...
+                            # if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
+                            front_to_tail=front_to_tail,
+                            # what grid to use to show the points
+                            figure_layout=[5, 1],
+                            # what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
+                            error_type=error_type,
+                            # figure parameters
+                            figsize=(10, 12),
+                            dpi=60,
+                            # wheather to plot the individual traces
+                            plot_individual=plot_individual,
+                            # the color of the individual traces (if shown)
+                            noise_color=noise_color)
+
+            if plot_type == "psh_0":
+                # titles for the current batch
+                titles = [f"Cell {idx}, {group} \nXYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
+                          for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
+                sp.show_psh(signal_idx[btch],
                             main_title,
                             titles,
                             # only show certain timepoints from the signal, for example : only 2 dots
-                            time_points=[[13, 7, 20], [27, 37, 53], [43, 60, 70]],
+                            time_points = time_points,
                             # front_to_tail will shift the cycleby the set number of voxels
                             # so when set to 3, there are 3 blank volumes at the begining and at the end ...
                             # if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
@@ -192,65 +250,29 @@ class Reports:
                             # what grid to use to show the points
                             figure_layout=[5, 2],
                             # what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
-                            error_type="sem",
+                            error_type=error_type,
                             # figure parameters
                             figsize=(10, 12),
                             dpi=60,
                             gridspec_kw={'hspace': 0.4, 'wspace': 0.3},
                             # wheather to plot the individual traces
-                            plot_individual=False,
+                            plot_individual=plot_individual,
                             # the color of the individual traces (if shown)
-                            noise_color='--c')
+                            noise_color=noise_color)
 
-                plt.xlabel('Volume in cycle')
-                filename = f'{tmp_folder}signals_batch{ibtch}.pdf'
-                plt.savefig(filename)
-                plt.close()
-                pdfs.append(filename)
-
-            merge_pdfs(pdfs, pdf_filename)
-
-    def make_reports_cycle(self, spot_tag):
-        spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
-
-        group_tags = ["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"]
-        for group_tag in group_tags:
-
-            # where to temporary store images while the cell is running
-            tmp_folder = f"{self.project}/spots/reports/all_significant/signals/"
-            # filename to save pdf with all the significant traces
-            pdf_filename = f"{self.project}/spots/reports/all_significant/signals/" \
-                           f"Cycles_from_{spot_tag}_significance_{group_tag}.pdf"
-
-            # initialise the signal plotter
-            SLIDING_WINDOW = 15  # in volumes
-            significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
-            sp = SignalPlotter(significant_signals_dff, self.experiment)
-
-            # some info on the cells to put into the title
-            cells_idx = spots.get_group_idx(spots.groups[group_tag])
-            cells_zyx = spots.get_group_centers(spots.groups[group_tag]).astype(np.int32)
-            cells_group = spots.get_group_info(group_tags)[spots.groups[group_tag]]
-            main_title = f"DFF signals, tscore image {spot_tag}, significance {group_tag}"
-
-            # plotting parameters
-            tpp = 5  # traces per page
-            # prepare the batches per page
-            cells = np.arange(sp.n_signals)
-            btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(sp.n_signals / tpp).astype(int)) * tpp]
-
-            pdfs = []
-            for ibtch, btch in enumerate(btchs):
+            if plot_type == "psh_b":
                 # titles for the current batch
                 titles = [f"Cell {idx}, {group} XYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
                           for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
-                sp.show_psh(btch,
+                sp.show_psh(signal_idx[btch],
                             main_title,
                             titles,
+                            # only show certain timepoints from the signal, for example : only 2 dots
+                            time_points=time_points,
                             # front_to_tail will shift the cycleby the set number of voxels
                             # so when set to 3, there are 3 blank volumes at the begining and at the end ...
                             # if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
-                            front_to_tail=3,
+                            front_to_tail=0,
                             # what grid to use to show the points
                             figure_layout=[5, 1],
                             # what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
@@ -258,15 +280,19 @@ class Reports:
                             # figure parameters
                             figsize=(10, 12),
                             dpi=60,
+                            # if you wish to split the line
+                            signal_split=signal_split,
                             # wheather to plot the individual traces
-                            plot_individual=False,
+                            plot_individual=plot_individual,
+                            # if you want to add vertical lines anywhere, list the x locations
+                            vlines=vlines,
                             # the color of the individual traces (if shown)
-                            noise_color='--c')
+                            noise_color=noise_color)
 
-                plt.xlabel('Volume in cycle')
-                filename = f'{tmp_folder}signals_batch{ibtch}.pdf'
-                plt.savefig(filename)
-                plt.close()
-                pdfs.append(filename)
+            plt.xlabel('Volume in cycle')
+            filename = f'{tmp_folder}signals_batch{ibtch}.pdf'
+            plt.savefig(filename)
+            plt.close()
+            pdfs.append(filename)
 
-            merge_pdfs(pdfs, pdf_filename)
+        merge_pdfs(pdfs, pdf_filename)
