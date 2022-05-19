@@ -10,3 +10,7 @@ numan/.idea/
 notebooks/data/2vs3vs5/processed/
 
 numan/__pycache__/
+
+numan.egg-info/
+
+desktop.ini
