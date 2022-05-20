@@ -354,10 +354,14 @@ class Spots:
     def __repr__(self):
         return self.__str__()
 
-    def add_groups(self, groups):
+    def add_groups(self, groups, rewrite = False):
         """
         groups: dict with boolean arrays to say which cells belong.
         """
+        if not rewrite and self.groups is not None:
+            for group in groups:
+                assert group not in self.groups, f"The group {group} already exists," \
+                                                 f" use rewrite to overwrite it, or use another group name"
         if self.groups is None:
             self.groups = {}
         for group in groups:
@@ -366,7 +370,8 @@ class Spots:
 
     def list_groups(self):
         if self.groups is not None:
-            print(self.groups.keys())
+            for key in self.groups.keys():
+                print(key)
 
     def _get_centers(self, units='phs'):
         """
