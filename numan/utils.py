@@ -25,6 +25,14 @@ def extract_windows(array, window_size):
     return array[sub_windows]
 
 
+def sort_by_len0(zip_to_sort):
+    """
+    Sorts the zip based on the length and alphabet of the first element in zip_to_sort
+    """
+    # sorts a list based on the length of the first element in zip
+    sorted_zip = sorted(zip_to_sort, key=lambda x: (len(x[0])), reverse=True)
+    return sorted_zip
+
 def get_dff(array, window_size):
     """
     subtracts average baseline from an ND array along the 0 dimention.
