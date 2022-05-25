@@ -124,13 +124,76 @@ class SignalPlotter:
         cbar = plt.colorbar(img, ax=ax, ticks=[0.5, 1, 1.5], orientation='horizontal')
         cbar.ax.set_xticklabels(names)
 
-    def show_psh(self, traces, main_title, tittles, error_type="prc", time_points=None,
+    def plot_trace(self, ax, trace,
+                            error_type="sem",
+                            time_points=None,
+                            cycles=None,
+                            front_to_tail=None,
+                            plot_individual=True,
+                            signal_split=None,
+                            vlines = None,
+                            noise_color='-c',
+                            mean_color = 'r',
+                            ax_limits = None):
+        """
+        Places a specified trace at the axis , ax.
+        """
+        # get the signals
+        cycled, mean, e = self.signals.get_looped(trace, self.experiment, error_type=error_type,
+                                                  time_points=time_points, cycles=cycles)
+        # shift the signals front-to-tail
+        if front_to_tail is not None:
+            old_order = np.arange(len(mean))
+            new_order = np.r_[old_order[front_to_tail:], old_order[0:front_to_tail]]
+            cycled = cycled[:, new_order]
+            mean = mean[new_order]
+            e = e[:, new_order]
+
+        # get axis limits
+        if ax_limits is None:
+            xmin, xmax, ymin, ymax = get_ax_limits(cycled, mean, e, plot_individual)
+            ax_limits = (xmin, xmax, ymin, ymax)
+        else:
+            xmin, xmax, ymin, ymax = ax_limits
+
+        # create the stimuli labels in the background
+        names, _, img = self.plot_labels(ax, extent=[xmin, xmax, ymin, ymax],
+                                         time_points=time_points,
+                                         front_to_tail=front_to_tail)
+
+        # if you wish to not connect/disconect certain groups of signals,
+        # it's indexed AFTER looping and time_points were already done:
+        #  index along the x axis you will see
+        if signal_split is not None:
+            for signal_group in signal_split:
+                if plot_individual:
+                    ax.plot(signal_group, cycled[:, signal_group].T, noise_color, alpha=0.3)
+                plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group, color = mean_color)
+        else:
+            if plot_individual:
+                ax.plot(cycled.T, noise_color, alpha=0.4, linewidth=1)
+            plot_errorbar(ax, mean, e, color = mean_color)
+
+        # to separate the plot regions with vertical lines
+        if vlines is not None:
+            ax.vlines(vlines, ymin, ymax, linewidth=0.8, color='black')  # , linestyle=(0, (5, 10))
+
+        # axis clean-up
+        ax.set_xlim((xmin, xmax))
+        ax.set_ylim((ymin, ymax))
+        ax.set_xticks(np.arange(len(mean)))
+        return ax_limits
+
+
+    def show_psh(self, traces, main_title, tittles, error_type="sem",
+                 time_points=None, cycles = None,
                  plot_individual=True, front_to_tail=None,
                  figure_layout=None, figsize=None,
-                 ylabel='', xlabel='', noise_color='--c', vlines=None, signal_split=None,
+                 ylabel='', xlabel='', noise_color='-c', vlines=None, signal_split=None,
                  gridspec_kw=None,
                  dpi=160):
         """
+        Plots specified traces for all the traces.
         front_to_tail : how many cycle points to attach from front to tail
         """
 
@@ -147,42 +210,19 @@ class SignalPlotter:
         fig, axes = plt.subplots(n_rows, n_col, gridspec_kw=gridspec_kw, figsize=figsize, dpi=dpi)
         axes = axes.flatten()
         fig.suptitle(main_title)
+
         for plot_id, trace in enumerate(traces):
-            cycled, mean, e = self.signals.get_looped(trace, self.experiment, error_type=error_type,
-                                                      time_points=time_points)
-
-            if front_to_tail is not None:
-                old_order = np.arange(len(mean))
-                new_order = np.r_[old_order[front_to_tail:], old_order[0:front_to_tail]]
-
-                cycled = cycled[:, new_order]
-                mean = mean[new_order]
-                e = e[:, new_order]
-
             ax = axes[plot_id]
-            xmin, xmax, ymin, ymax = get_ax_limits(cycled, mean, e, plot_individual)
-            names, _, img = self.plot_labels(ax, extent=[xmin, xmax, ymin, ymax],
-                                             time_points=time_points,
-                                             front_to_tail=front_to_tail)
-
-            # if you wish to not connect certain groups of signals
-            if signal_split is not None:
-                for signal_group in signal_split:
-                    if plot_individual:
-                        ax.plot(signal_group, cycled[:, signal_group].T, noise_color, alpha=0.3)
-                    plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group)
-            else:
-                if plot_individual:
-                    ax.plot(cycled.T, noise_color, alpha=0.4, linewidth = 1)
-                plot_errorbar(ax, mean, e)
-
-            if vlines is not None:
-                ax.vlines(vlines, ymin, ymax, linewidth=0.8, color='black')  # , linestyle=(0, (5, 10))
-
+            self.plot_trace(ax, trace,
+                            error_type=error_type,
+                            time_points=time_points,
+                            cycles=cycles,
+                            front_to_tail=front_to_tail,
+                            plot_individual=plot_individual,
+                            signal_split=signal_split,
+                            noise_color=noise_color,
+                            vlines = vlines)
             ax.set_title(tittles[plot_id])
-            ax.set_xlim((xmin, xmax))
-            ax.set_ylim((ymin, ymax))
-            ax.set_xticks(np.arange(len(mean)))
             ax.set_xticklabels([])
             ax.set_ylabel(ylabel)
             ax.set_xlabel(xlabel)

@@ -264,7 +264,7 @@ class Signals:
 
         return cls(design_matrix, traces_type=traces_type)
 
-    def get_looped(self, trace, experiment, time_points=None, error_type="prc"):
+    def get_looped(self, trace, experiment, time_points=None, cycles = None, error_type="prc"):
         """
         Returns signals looped per cycle
         time_points: time points of the cycle. If you only need certain time-points from the cycle ( in volumes )
@@ -281,6 +281,11 @@ class Signals:
                                                     "by which I mean that plot_looped function needs more code :), " \
                                                     "Sorry. Hint : use time_points "
         cycled = self.traces[:, trace].reshape((n_cycles, int(cycle_length)))
+
+        # grab only the desired cycles
+        if cycles is not None:
+            cycles = np.array(cycles)
+            cycled = cycled[cycles, :]
 
         # crop out the necessary cycle part,
         # note: you can reorder the cycle as well ( to add points from the beginning  to the end of the cycle)

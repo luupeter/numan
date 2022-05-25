@@ -99,11 +99,11 @@ def get_diff(movie1, movie2, absolute=False):
     return diff
 
 
-def plot_errorbar(ax, mean, e, x=None):
+def plot_errorbar(ax, mean, e, x=None, color = 'r'):
     if x is None:
         x = np.arange(len(mean))
-    ax.errorbar(x, mean, yerr=e, fmt='o', color='r')
-    ax.plot(x, mean, color='r')
+    ax.errorbar(x, mean, yerr=e, fmt='o', color = color)
+    ax.plot(x, mean, color = color)
 
 
 def get_ax_limits(cycled, mean, e, plot_individual):
