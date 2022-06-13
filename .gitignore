@@ -16,3 +16,9 @@ numan.egg-info/
 desktop.ini
 
 notebooks/data/2vs3vs5/raw/
+
+notebooks/data/2vs3vs5/for_deconv/
+
+notebooks/data/2vs3vs5/for_registration/
+
+notebooks/individual_datasets/2vs3vs5/tmax_pipeline/.ipynb_checkpoints/

@@ -1,7 +1,7 @@
 # Processing pipeline for an experiment with 3 visual stimuli
 A set of notebooks customized for an experiment with 3 visual stimuli : 2, 3, and 5 dots on the screen , separated by a blank screen.
 
-Requires numan version 0.0.6, and vodex version 0.0.5 
+Requires numan version 0.0.7, and vodex version 0.0.5 
 upgrade the packages if you have older versions with :
 ```
 pip install --upgrade vodex
