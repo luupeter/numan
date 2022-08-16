@@ -1,3 +1,45 @@
 [build-system]
-requires = ["setuptools>=42","wheel"]
+requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "numan"
+version = "1.0.0"
+description='numerosity analysis package'
+readme = "README.md"
+authors = [{ name = "Anna Nadtochiy", email = "nadtochi@usc.edu" }]
+license = { file = "LICENSE" }
+classifiers=[
+    'Development Status :: 3 - Alpha',
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Image Processing',
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: OS Independent'
+]
+dependencies = [
+    'vodex >=1.0.1,<2.0.0',
+    'pypdf2',
+    'reportlab',
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["bumpver","ipykernel"]
+
+[project.urls] # Read The Docs will also go in here
+Homepage = "https://github.com/LemonJust/numan"
+
+[tool.bumpver]
+current_version = "1.0.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = false
+tag = false
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'version = "{version}"',
+]
+"src/numan/__init__.py" = ["{version}"]

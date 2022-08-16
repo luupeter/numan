@@ -33,15 +33,14 @@ def sort_by_len0(zip_to_sort):
     sorted_zip = sorted(zip_to_sort, key=lambda x: (len(x[0])), reverse=True)
     return sorted_zip
 
-def get_dff(array, window_size):
+def get_baseline(array, window_size, percentile):
     """
-    subtracts average baseline from an ND array along the 0 dimention.
+    returns average baseline of an ND array along the 0 dimention.
     window_size must be an odd number.
 
     The baseline for the first and the last window//2 elements is the same :
     the first or the last value calculated with the full window
     """
-    percentile = 8  # 8th percentile
     mean_signal = np.percentile(extract_windows(array, window_size), percentile, axis=1)
     # construct the baseline
     start = window_size // 2
@@ -51,6 +50,19 @@ def get_dff(array, window_size):
     baseline[0:start] = mean_signal[0]
     baseline[start:end] = mean_signal
     baseline[end:] = mean_signal[-1]
+
+    return baseline, start, end
+
+def get_dff(array, window_size):
+    """
+    subtracts average baseline from an ND array along the 0 dimention.
+    window_size must be an odd number.
+
+    The baseline for the first and the last window//2 elements is the same :
+    the first or the last value calculated with the full window
+    """
+    percentile = 8  # 8th percentile
+    baseline, start, end = get_baseline(array, window_size, percentile)
 
     return (array - baseline) / baseline, start, end
 

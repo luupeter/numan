@@ -3,6 +3,7 @@ Classes for Numerosity analysis.
 """
 from tifffile import TiffFile, imread, imsave
 import numpy as np
+import scipy as sp
 import json
 import os
 
@@ -13,6 +14,7 @@ import pandas as pd
 import PyPDF2
 
 from .utils import *
+
 
 class Spot:
     """
@@ -186,7 +188,7 @@ class Spot:
 
 
 class Signals:
-    def __init__(self, traces, traces_type="raw"):
+    def __init__(self, traces, traces_type="raw", fps=1):
         """
         traces : matrix TxN ( time x number of signals )
         traces_type : a 3 letter code for what kind of signals are these : "raw", "dff", "zsc" ( z  - score )
@@ -195,6 +197,10 @@ class Signals:
         self.T, self.N = self.traces.shape
 
         self.traces_type = traces_type
+        self.fps = fps
+
+    def change_fs(self, fps):
+        self.fps = fps
 
     def as_dff(self, window_size):
         """
@@ -206,6 +212,48 @@ class Signals:
         dff, start, end = get_dff(self.traces, window_size)
 
         return Signals(dff, traces_type="dff")
+
+    def hp_filter(self, cutoff):
+        """
+        Returns high-pass filtered signals from the design_matrix
+        """
+        assert self.traces_type == "raw", f"Can't apply dff: " \
+                                          f"the signals have already been processed, these are {self.traces_type} signals"
+
+        def butter_highpass(cutoff, fps, order=5):
+            # calculate the numerator and denominator coefficient vectors of the filter
+            nyq = 0.5 * fps
+            normal_cutoff = cutoff / nyq
+            b, a = signal.butter(order, normal_cutoff, btype="high", analog=False)
+            return b, a
+
+        def butter_highpass_filter(data, cutoff, fps, order=5):
+            # return the filtered signal
+            b, a = butter_highpass(cutoff, fps, order=order)
+            y = signal.filtfilt(b, a, data, axis=0)
+            return y
+
+        filtered_traces = butter_highpass_filter(self.traces, cutoff, self.fps)
+
+        return Signals(filtered_traces, traces_type="hp filtered", fps=self.fps)
+
+    def as_zscore(self, cutoff, window_size):
+        """
+        Returns z-score of the design_matrix
+        Uses high-pass filter for z-score calculation
+        """
+        assert self.traces_type == "raw", f"Can't apply dff: " \
+                                          f"the signals have already been processed, these are {self.traces_type} signals"
+        # get baseline : as median
+        percentile = 50
+        baseline, start, end = get_baseline(self.traces, window_size, percentile)
+        # get standart deviation from high-pass filtred data
+        filtered_signals = self.hp_filter(cutoff)
+        filtered_sd = np.std(filtered_signals.traces, axis=0)
+        # calcualte z-score
+        zscore_signals = (self.traces - baseline) / filtered_sd
+
+        return Signals(zscore_signals, traces_type="zscore", dff=self.dff)
 
     @classmethod
     def from_spots(cls, spots, volumes=None, experiment=None, batch_size=None, movie=None,
@@ -264,7 +312,7 @@ class Signals:
 
         return cls(design_matrix, traces_type=traces_type)
 
-    def get_looped(self, trace, experiment, time_points=None, cycles = None, error_type="prc"):
+    def get_looped(self, trace, experiment, time_points=None, cycles=None, error_type="prc"):
         """
         Returns signals looped per cycle
         time_points: time points of the cycle. If you only need certain time-points from the cycle ( in volumes )
@@ -359,7 +407,7 @@ class Spots:
     def __repr__(self):
         return self.__str__()
 
-    def add_groups(self, groups, rewrite = False):
+    def add_groups(self, groups, rewrite=False):
         """
         groups: dict with boolean arrays to say which cells belong.
         """
@@ -518,7 +566,7 @@ class Spots:
 
         return np.array(centers)
 
-    def get_group_info(self, group_list, group = None):
+    def get_group_info(self, group_list, group=None):
         """
         Returns a string with the titles of the groups from group_list, where each spot is a member.
         group = the T/F list ... If group is not None: only returns it for the group.
@@ -675,5 +723,3 @@ class Preprocess:
             # exit cycle the first time you saw the end og the experiment
             if chunk[-1] == (n_volumes - 1):
                 break
-
-

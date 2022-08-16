@@ -268,6 +268,7 @@ class Reports:
 
         # initialise the signal plotter
         SLIDING_WINDOW = 15  # in volumes
+        print(f"Using sliding window {SLIDING_WINDOW} volumes")
         significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
         sp = SignalPlotter(significant_signals_dff, self.experiment)
 
