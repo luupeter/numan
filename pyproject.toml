@@ -21,6 +21,7 @@ dependencies = [
     'vodex >=1.0.1,<2.0.0',
     'pypdf2',
     'reportlab',
+    'scipy',
 ]
 requires-python = ">=3.9"
 
