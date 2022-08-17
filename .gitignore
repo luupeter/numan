@@ -30,3 +30,9 @@ notebooks/.ipynb_checkpoints/
 src/numan/__pycache__/
 
 notebooks/data/2vs3vs5/
+
+data/test/dff/
+
+data/test/t_score/
+
+data/test/diff/
