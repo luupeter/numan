@@ -33,6 +33,7 @@ def sort_by_len0(zip_to_sort):
     sorted_zip = sorted(zip_to_sort, key=lambda x: (len(x[0])), reverse=True)
     return sorted_zip
 
+
 def get_baseline(array, window_size, percentile):
     """
     returns average baseline of an ND array along the 0 dimention.
@@ -53,6 +54,7 @@ def get_baseline(array, window_size, percentile):
 
     return baseline, start, end
 
+
 def get_dff(array, window_size):
     """
     subtracts average baseline from an ND array along the 0 dimention.
@@ -64,10 +66,17 @@ def get_dff(array, window_size):
     percentile = 8  # 8th percentile
     baseline, start, end = get_baseline(array, window_size, percentile)
 
+    # not to divide by zero:
+    b_zero = baseline == 0
+    if np.sum(b_zero) > 0:
+        warnings.warn(f"{np.sum(b_zero)} baseline values are zero.\n"
+                      f"Setting these values to 10^(-6) to avoid dividing by zero.")
+        baseline[b_zero] = 10 ^ (-6)
+
     return (array - baseline) / baseline, start, end
 
 
-def get_t_score(movie1, movie2, absolute=False):
+def get_t_score(movie1, movie2, absolute=True):
     """
     Returns absolute t-score image ( 2D or 3D, depending on input),
     for t-score calculations see for example :
@@ -84,6 +93,13 @@ def get_t_score(movie1, movie2, absolute=False):
     n2 = movie2.shape[0]
 
     std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
+
+    # not to divide by zero:
+    std_zero = std == 0
+    if np.sum(std_zero) > 0:
+        warnings.warn(f"{np.sum(std_zero)} std values are zero.\n"
+                      f"Setting these values to 10^(-6) to avoid dividing by zero.")
+        std[std_zero] = 10 ^ (-6)
 
     if absolute:
         t_score = np.absolute(avg1 - avg2) / std
@@ -111,11 +127,11 @@ def get_diff(movie1, movie2, absolute=False):
     return diff
 
 
-def plot_errorbar(ax, mean, e, x=None, color = 'r'):
+def plot_errorbar(ax, mean, e, x=None, color='r'):
     if x is None:
         x = np.arange(len(mean))
-    ax.errorbar(x, mean, yerr=e, fmt='o', color = color)
-    ax.plot(x, mean, color = color)
+    ax.errorbar(x, mean, yerr=e, fmt='o', color=color)
+    ax.plot(x, mean, color=color)
 
 
 def get_ax_limits(cycled, mean, e, plot_individual):
@@ -132,6 +148,7 @@ def get_ax_limits(cycled, mean, e, plot_individual):
     xmax = cycled.shape[1] - 0.5
 
     return xmin, xmax, ymin, ymax
+
 
 def merge_pdfs(pdfs, filename):
     """
