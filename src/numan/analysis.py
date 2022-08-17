@@ -1,7 +1,7 @@
 """
 Classes for Numerosity analysis.
 """
-from tifffile import TiffFile, imread, imsave
+from tifffile import TiffFile, imread, imwrite
 import numpy as np
 import scipy as sp
 import json
@@ -678,7 +678,8 @@ class Preprocess:
 
     def batch_dff(self, save_dir, batch_size, window_size, verbose=False):
         """
-        Creates 3D dff movie from raw 3D movie.
+        Creates 3D dff movie from raw 3D movie. Will only use full_volumes,
+        so the number of frames in the resulting movie can be smaller than in the original.
 
         :param save_dir: directory into which to save the dff movie in chunks
         :type save_dir: str
@@ -690,20 +691,31 @@ class Preprocess:
         :type verbose: bool
         """
         # TODO : make the size & digit estimation
-
         # TODO : write resolution into metadata
 
-        n_volumes = self.experiment.volume_manager.full_volumes
-        volume_list = np.arange(n_volumes)
-        overlap = window_size - 1
-        # some of the chunks at the end will be dropped later
-        chunks = [volume_list[i:i + batch_size] for i in range(0, len(volume_list), batch_size - overlap)]
+        # will only use full volumes
+        volume_list = np.array(self.experiment.db.get_volume_list())
+        if np.sum(volume_list == -1) > 0:
+            warnings.warn(f"The are some frames at the beginning of the recording "
+                          f"that don't correspond to a full volume and will be dropped.")
+        if np.sum(volume_list == -2) > 0:
+            warnings.warn(f"The are some frames at the end of the recording "
+                          f"that don't correspond to a full volume and will be dropped.")
+        volume_list = volume_list[volume_list >= 0]
+        n_volumes = len(volume_list)
+
         # will multiply dff image by this value for better visualisation later
         SCALE = 1000
 
+        # break volumes into chunks that will be downloaded at once
+        overlap = window_size - 1
+        # there are more chunks than needed, this is okay:
+        # the cycle will end after the first chunk that contains the end of the experiment
+        chunks = [volume_list[i:i + batch_size] for i in range(0, len(volume_list), batch_size - overlap)]
+
         for ich, chunk in enumerate(tqdm(chunks, disable=verbose)):
 
-            data = self.experiment.volume_manager.load_volumes(chunk, verbose=False)
+            data = self.experiment.load_volumes(chunk, verbose=False)
             dff_img, start_tp, end_tp = get_dff(data, window_size)
             t, z, y, x = dff_img.shape
 
@@ -714,12 +726,12 @@ class Preprocess:
             if ich == 0:
                 start_tp = 0
 
-            imsave(f'{save_dir}/dff_movie_{ich:04d}.tif',
-                   (dff_img[start_tp:end_tp, :, :, :] * SCALE).astype(np.int16), shape=(end_tp - start_tp, z, y, x),
-                   metadata={'axes': 'TZYX'}, imagej=True)
+            imwrite(f'{save_dir}/dff_movie_{ich:04d}.tif',
+                    (dff_img[start_tp:end_tp, :, :, :] * SCALE).astype(np.uint16), shape=(end_tp - start_tp, z, y, x),
+                    metadata={'axes': 'TZYX'}, imagej=True)
 
             if verbose:
                 print(f"written frames : {chunk[start_tp]} - {chunk[end_tp - 1]}, out of {n_volumes}")
-            # exit cycle the first time you saw the end og the experiment
+            # exit cycle the first chunk you saw the end of the experiment
             if chunk[-1] == (n_volumes - 1):
                 break
