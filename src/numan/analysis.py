@@ -726,8 +726,15 @@ class Preprocess:
             if ich == 0:
                 start_tp = 0
 
+            # make sure the output fits into the int16 range:
+            min_value = dff_img[start_tp:end_tp, :, :, :].min()
+            max_value = dff_img[start_tp:end_tp, :, :, :].max()
+            if max_value * SCALE > 32767 or min_value * SCALE < -32768:
+                warnings.warn(f"Scaled DFF values outside the int16 range for scale = {SCALE},"
+                              f" min: {min_value}, max: {max_value}")
+            # write image
             imwrite(f'{save_dir}/dff_movie_{ich:04d}.tif',
-                    (dff_img[start_tp:end_tp, :, :, :] * SCALE).astype(np.uint16), shape=(end_tp - start_tp, z, y, x),
+                    (dff_img[start_tp:end_tp, :, :, :] * SCALE).astype(np.int16), shape=(end_tp - start_tp, z, y, x),
                     metadata={'axes': 'TZYX'}, imagej=True)
 
             if verbose:
