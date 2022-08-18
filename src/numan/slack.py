@@ -2,6 +2,7 @@ import urllib3
 import json
 import traceback
 # read more https://api.slack.com/methods/chat.postMessage
+# and here is how to listen to messages: https://slack.dev/bolt-python/concepts !!!
 
 
 webhook_url = 'https://hooks.slack.com/services/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'
