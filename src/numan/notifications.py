@@ -1,19 +1,15 @@
 import urllib3
 import json
 import traceback
+import base64
 
 # read more https://api.slack.com/methods/chat.postMessage
 # and here is how to listen to messages: https://slack.dev/bolt-python/concepts !!!
 
 # this is not very smart...I know... please don't post anything to our channel :D
-webhook_url = '^%^h^#%t%#%^t%#%p^^%#%s%#:#/#/#%^h%#%^o%#%^o%#%^k%#%^s%#.#%^s%#%%' \
-              '^l%#%^a%#%^c%#%^k%#.#%^c%#%^o%#%^m%#/#%^s%#%^e%#%^r%#%^v%#%^i%#%^c%#' \
-              '%^e%#%^s%#/#%^T%#%^P%#%^E%#%^F%#%^L%#%^7%#%^B%#%^6%#%^C%#/#%^B%#%^0%#%^' \
-              '3%#%^U%#%^2%#%^6%#%^Y%#%^C%#%^4%#%^8%#%^M%#/#%^H%#%^a%#%^t%#%^p%#%^1%#%a%' \
-              '#%A%#%r%#%T%#%O%#%I%#%4%#%I%#%l%#%m%#%0%#%4%#%U%#%d%#%K%#%W%#%2%#%H%#%%n%'
-webhook_url = webhook_url.replace('^', '')
-webhook_url = webhook_url.replace('%', '')
-webhook_url = webhook_url.replace('#', '')
+webhook_url = base64.b64decode(
+    'aHR0cHM6Ly9ob29rcy5zbGFjay5jb20vc2VydmljZXMvVFBFRkw3QjZDL' \
+    '0IwM1UyNllDNDhNL0hhdHAxYUFyVE9JNElsbTA0VWRLVzJIbg=='.encode('ascii')).decode('ascii')
 
 user_id = {"anna": "UPGMQ34BG", "peter": "UPE21JHRA"}
 
@@ -42,5 +38,5 @@ def slack_notification(message, tag_users=None):
 
 
 if __name__ == "__main__":
-    slack_notification(f'Will go to sleep now ......',
-                       tag_users=["peter"])
+    slack_notification(f'go to sleep now ?',
+                       tag_users=["anna"])
