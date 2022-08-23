@@ -269,7 +269,9 @@ class Signals:
             "Provide a movie or volume IDs and an experiment "
 
         if volumes == "all":
-            volumes = np.arange(experiment.volume_manager.full_volumes)
+            # only use full volumes
+            volumes = experiment.list_volumes()
+            volumes = volumes[volumes >= 0]
 
         def fill_signal(matrix, movie, t_start, t_end):
             for isp, spot in enumerate(spots):
@@ -304,7 +306,7 @@ class Signals:
                 if verbose:
                     print(f"Batch {batch}, t_start {t_start}, t_end {t_end}")
                 # load a batch from disk
-                movie = experiment.volume_manager.load_volumes(batch, show_progress=True)
+                movie = experiment.load_volumes(batch, verbose=True)
                 # extract signals for all the spots from the loaded chunk
                 design_matrix = fill_signal(design_matrix, movie, t_start, t_end)
 
@@ -414,7 +416,8 @@ class Spots:
         if not rewrite and self.groups is not None:
             for group in groups:
                 assert group not in self.groups, f"The group {group} already exists," \
-                                                 f" use rewrite to overwrite it, or use another group name"
+                                                 f" use rewrite to overwrite it," \
+                                                 f" or use another group name"
         if self.groups is None:
             self.groups = {}
         for group in groups:
@@ -694,13 +697,7 @@ class Preprocess:
         # TODO : write resolution into metadata
 
         # will only use full volumes
-        volume_list = np.array(self.experiment.db.get_volume_list())
-        if np.sum(volume_list == -1) > 0:
-            warnings.warn(f"The are some frames at the beginning of the recording "
-                          f"that don't correspond to a full volume and will be dropped.")
-        if np.sum(volume_list == -2) > 0:
-            warnings.warn(f"The are some frames at the end of the recording "
-                          f"that don't correspond to a full volume and will be dropped.")
+        volume_list = self.experiment.list_volumes()
         volume_list = volume_list[volume_list >= 0]
         n_volumes = len(volume_list)
 
@@ -742,3 +739,6 @@ class Preprocess:
             # exit cycle the first chunk you saw the end of the experiment
             if chunk[-1] == (n_volumes - 1):
                 break
+
+if __name__ == "__main__":
+    pass

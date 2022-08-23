@@ -17,21 +17,23 @@ from reportlab.lib.colors import white, black
 from .analysis import *
 from .utils import *
 
+
 def place_cb(can, x, y, name):
     form = can.acroForm
     can.setFont("Courier", 12)
-    can.drawCentredString(x+20, y+20, name)
-    form.checkbox( name = name,
-                # tooltip = f"Field {name}",
-                x = x + 10,
-                y = y-4,
-                # buttonStyle = 'check',
-                borderColor = black,
-                fillColor = white,
-                textColor = black,
-                forceBorder = True
-                )
+    can.drawCentredString(x + 20, y + 20, name)
+    form.checkbox(name=name,
+                  # tooltip = f"Field {name}",
+                  x=x + 10,
+                  y=y - 4,
+                  # buttonStyle = 'check',
+                  borderColor=black,
+                  fillColor=white,
+                  textColor=black,
+                  forceBorder=True
+                  )
     return can
+
 
 def generate_timpoints(bb, ba, time_centers):
     """
@@ -48,7 +50,8 @@ def generate_timpoints(bb, ba, time_centers):
     time_points = time_points.astype(int)
     return time_points
 
-def get_idx_per_page(spots, group_tag, sort_by_sig = False):
+
+def get_idx_per_page(spots, group_tag, sort_by_sig=False):
     # some info on the cells to put into the title
     cells_idx = spots.get_group_idx(spots.groups[group_tag])
     if sort_by_sig:
@@ -70,6 +73,7 @@ class SignalPlotter:
     """
     All the plotting functions.
     """
+
     def __init__(self, signals, experiment, spf=1):
         """
         spf : seconds per frame
@@ -79,11 +83,25 @@ class SignalPlotter:
         self.n_signals = self.signals.traces.shape[1]
 
     def plot_labels(self, ax, extent=None, time_points=None, front_to_tail=None):
+        """
+        Figures out a
+        :param ax:
+        :type ax:
+        :param extent:
+        :type extent:
+        :param time_points:
+        :type time_points:
+        :param front_to_tail:
+        :type front_to_tail:
+        :return:
+        :rtype:
+        """
         # timing in volumes, since one volume is one time point of the signal
         timing = (self.experiment.cycle.timing / self.experiment.volume_manager.fpv).astype(np.int)
         # get condition name for each time point of the signal
         conditions = [cond for t, condition in zip(timing, self.experiment.cycle.conditions) for cond in
                       [condition.name] * t]
+
         # encode unique names into intengers, return_inverse gives the integer encoding
         names, values = np.unique(conditions, return_inverse=True)
 
@@ -125,16 +143,16 @@ class SignalPlotter:
         cbar.ax.set_xticklabels(names)
 
     def plot_trace(self, ax, trace,
-                            error_type="sem",
-                            time_points=None,
-                            cycles=None,
-                            front_to_tail=None,
-                            plot_individual=True,
-                            signal_split=None,
-                            vlines = None,
-                            noise_color='-c',
-                            mean_color = 'r',
-                            ax_limits = None):
+                   error_type="sem",
+                   time_points=None,
+                   cycles=None,
+                   front_to_tail=None,
+                   plot_individual=True,
+                   signal_split=None,
+                   vlines=None,
+                   noise_color='-c',
+                   mean_color='r',
+                   ax_limits=None):
         """
         Places a specified trace at the axis , ax.
         """
@@ -168,11 +186,11 @@ class SignalPlotter:
             for signal_group in signal_split:
                 if plot_individual:
                     ax.plot(signal_group, cycled[:, signal_group].T, noise_color, alpha=0.3)
-                plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group, color = mean_color)
+                plot_errorbar(ax, mean[signal_group], e[:, signal_group], x=signal_group, color=mean_color)
         else:
             if plot_individual:
                 ax.plot(cycled.T, noise_color, alpha=0.4, linewidth=1)
-            plot_errorbar(ax, mean, e, color = mean_color)
+            plot_errorbar(ax, mean, e, color=mean_color)
 
         # to separate the plot regions with vertical lines
         if vlines is not None:
@@ -184,9 +202,8 @@ class SignalPlotter:
         ax.set_xticks(np.arange(len(mean)))
         return ax_limits
 
-
     def show_psh(self, traces, main_title, tittles, error_type="sem",
-                 time_points=None, cycles = None,
+                 time_points=None, cycles=None,
                  plot_individual=True, front_to_tail=None,
                  figure_layout=None, figsize=None,
                  ylabel='', xlabel='', noise_color='-c', vlines=None, signal_split=None,
@@ -221,7 +238,7 @@ class SignalPlotter:
                             plot_individual=plot_individual,
                             signal_split=signal_split,
                             noise_color=noise_color,
-                            vlines = vlines)
+                            vlines=vlines)
             ax.set_title(tittles[plot_id])
             ax.set_xticklabels([])
             ax.set_ylabel(ylabel)
@@ -236,48 +253,24 @@ class Reports:
     For now it is simply a class of wrappers to make reports specifically for the 2vs3vs5 experiment.
     I hope it will become more clean and general as time goes on.
     """
+
     def __init__(self, project_folder, experiment):
         self.project = project_folder
         self.experiment = experiment
 
-    def make_signal_reports(self, spot_tag, group_tag,
-                     plot_type = "cycle",
-                     plot_type_tag = '',
-                     front_to_tail=0,
-                     time_points=None,
-                     vlines=None,
-                     signal_split=None,
-                     error_type="sem",
-                     noise_color='--c',
-                     plot_individual=False,
-                     sort_by_sig = False,
-                     tmp_folder=None,
-                     pdf_filename=None):
-        """
-        plot_type: "cycle", "psh_b", "psh_0"
-        """
-
-        spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
-        if tmp_folder is None:
-            # where to temporary store images while the code is running
-            tmp_folder = f"{self.project}/spots/reports/all_significant/signals/"
-        if pdf_filename is None:
-            # filename to save pdf with all the significant traces
-            pdf_filename = f"{self.project}/spots/reports/all_significant/signals/" \
-                           f"{plot_type}{plot_type_tag}_from_{spot_tag}_significance_{group_tag}.pdf"
-
-        # initialise the signal plotter
-        SLIDING_WINDOW = 15  # in volumes
-        print(f"Using sliding window {SLIDING_WINDOW} volumes")
-        significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
-        sp = SignalPlotter(significant_signals_dff, self.experiment)
-
+    @staticmethod
+    def prepare_spot_info(spots, group_tag, sort_by_sig=True,
+                          groups_to_specify=["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"]):
         # some info on the cells to put into the title
+        # cells idx in the original set of cells as they are in the spots
         cells_idx = spots.get_group_idx(spots.groups[group_tag])
+        # cells coordinates
         cells_zyx = spots.get_group_centers(spots.groups[group_tag]).astype(np.int32)
-        cells_group = spots.get_group_info(["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"],
+        # list of groups that the cell belongs to ( from the list provided )
+        cells_group = spots.get_group_info(groups_to_specify,
                                            group=spots.groups[group_tag])
         cells_group = np.array([group_name.replace("sig", "") for group_name in cells_group])
+        # since signals are already cropped for the group, it's just np.arrange
         signal_idx = np.arange(sp.n_signals)
 
         if sort_by_sig:
@@ -288,15 +281,89 @@ class Reports:
             cells_zyx = np.array([el[2] for el in sorted_zip])
             signal_idx = np.array([el[3] for el in sorted_zip])
 
+        return cells_group, cells_idx, cells_zyx, signal_idx
+
+    def make_signal_reports(self, spot_tag, group_tag,
+                            plot_type="cycle",
+                            plot_type_tag='',
+                            front_to_tail=0,
+                            time_points=None,
+                            vlines=None,
+                            signal_split=None,
+                            error_type="sem",
+                            noise_color='--c',
+                            plot_individual=False,
+                            tmp_folder=None,
+                            pdf_filename=None):
+        """
+        Generates a pdf with the specified type of plots.
+
+        :param spot_tag: what set of spots to use. Chooses the spots*.json based on this.
+        :type spot_tag: str
+        :param group_tag: what spots group to use.
+        :type group_tag: str
+        :param plot_type: what plot to output ["cycle","psh_0","psh_b"]
+        :type plot_type: str
+        :param plot_type_tag: just for the pdf naming : this is to be able to distinguish
+                    the pdfs with the same plot type, but errors are different or raw traces on/off or front_to_tail...
+        :type plot_type_tag: str
+        :param front_to_tail: front_to_tail will shift the cycle by the set number of voxels
+                    so when set to 3, there are 3 blank volumes at the begining and at the end ...
+                    if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
+        :type front_to_tail: int
+        :param time_points: only show certain timepoints from the signal, for example : only 2 dots.
+                    IF time_points is 2d array, will overlap traces along axis = 1.
+        :type time_points: numpy.array
+        :param vlines: draw vertical lines, locations (in volumes) where to draw vertical lines
+        :type vlines: list[int]
+        :param signal_split: how to break the lines in the plot, this is relevant to the displayed x axis
+        :type signal_split: numpy.array
+        :param error_type: what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
+        :type error_type: str
+        :param noise_color: the color of the individual traces (if shown)
+        :type noise_color: valid color definition
+        :param plot_individual: wheather to plot the individual traces
+        :type plot_individual: bool
+        :param tmp_folder: will store batch images in this folder before merging pdf,
+                    will be stored with reports if left None.
+        :type tmp_folder: Union(str, Path)
+        :param pdf_filename: the name of the pdf file to save, will be generated automatically if left None
+        :type pdf_filename: str
+
+        """
+
+        # fill out the defaults
+        if tmp_folder is None:
+            # where to temporary store images while the code is running
+            tmp_folder = f"{self.project}/spots/reports/all_significant/signals/"
+        if pdf_filename is None:
+            # filename to save pdf with all the significant traces
+            pdf_filename = f"{self.project}/spots/reports/all_significant/signals/" \
+                           f"{plot_type}{plot_type_tag}_from_{spot_tag}_significance_{group_tag}.pdf"
+
+        spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
+
+        # initialise the signal plotter with DFF signal
+        SLIDING_WINDOW = 15  # in volumes
+        print(f"Using sliding window {SLIDING_WINDOW} volumes for signal DFF")
+        significant_signals_dff = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+        sp = SignalPlotter(significant_signals_dff, self.experiment)
+
+        # prepare title info
+        cells_group, cells_idx, cells_zyx, signal_idx = self.prepare_spot_info(spots, group_tag, sort_by_sig=True,
+                          groups_to_specify=["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"])
         main_title = f"DFF signals, tscore image {spot_tag}, significance {group_tag}"
 
+        # choose traces per page
         if plot_type == "psh_0":
             tpp = 10  # traces per page
         else:
             tpp = 5
+
         # prepare the batches per page
         cells = np.arange(sp.n_signals)
         btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(sp.n_signals / tpp).astype(int)) * tpp]
+
         pdfs = []
 
         for ibtch, btch in enumerate(btchs):
@@ -333,7 +400,7 @@ class Reports:
                             main_title,
                             titles,
                             # only show certain timepoints from the signal, for example : only 2 dots
-                            time_points = time_points,
+                            time_points=time_points,
                             # front_to_tail will shift the cycleby the set number of voxels
                             # so when set to 3, there are 3 blank volumes at the begining and at the end ...
                             # if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
@@ -388,8 +455,8 @@ class Reports:
 
         merge_pdfs(pdfs, pdf_filename)
 
-    def make_group_selection(self, bb = 3, ba = 5, time_centers = None, spot_tag = None,
-                             plot_type = "psh_b", plot_individual = False, rewrite = False):
+    def make_group_selection(self, bb=3, ba=5, time_centers=None, spot_tag=None,
+                             plot_type="psh_b", plot_individual=False, rewrite=False):
 
         """
         Creates files with the checkboxes for group selection. The group tag is set to "sigAny2v3v5vB" fo rnow...
@@ -401,7 +468,8 @@ class Reports:
         tmp_folder = f"{self.project}/spots/reports/groupped/tmp/{spot_tag}_{group_tag}_png"
 
         if os.path.isdir(tmp_folder) and not rewrite:
-            print("The folder with the images already exists, reusing existing images. Do you want to rewrite the images? ( set rewrite = True)")
+            print(
+                "The folder with the images already exists, reusing existing images. Do you want to rewrite the images? ( set rewrite = True)")
         else:
             os.makedirs(tmp_folder)
 
@@ -422,27 +490,27 @@ class Reports:
                 vlines = None
 
             self.prepare_group_images(spots, spot_tag, group_tag, tmp_folder,
-                                 # types of plots:
-                                 plot_type=plot_type,
-                                 dpi=160,
-                                 # just for the pdf naming :
-                                 # this is to be able to distinguish the pdfs with the same plot type,
-                                 # but errors are different or raw traces on/off or front_to_tail
-                                 plot_type_tag='',
-                                 # only show certain timepoints from the signal, for example : only 2 dots
-                                 time_points=time_points,
-                                 # how to break the line
-                                 signal_split=signal_split,
-                                 # draw vertical lines
-                                 vlines=vlines,
-                                 # wether or not you want to have the cells sorted on how many tests they passes
-                                 sort_by_sig=sort_by_sig,
-                                 # what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
-                                 error_type="sem",
-                                 # wheather to plot the individual traces
-                                 plot_individual=plot_individual,
-                                 # the color of the individual traces (if shown)
-                                 noise_color='-c')
+                                      # types of plots:
+                                      plot_type=plot_type,
+                                      dpi=160,
+                                      # just for the pdf naming :
+                                      # this is to be able to distinguish the pdfs with the same plot type,
+                                      # but errors are different or raw traces on/off or front_to_tail
+                                      plot_type_tag='',
+                                      # only show certain timepoints from the signal, for example : only 2 dots
+                                      time_points=time_points,
+                                      # how to break the line
+                                      signal_split=signal_split,
+                                      # draw vertical lines
+                                      vlines=vlines,
+                                      # wether or not you want to have the cells sorted on how many tests they passes
+                                      sort_by_sig=sort_by_sig,
+                                      # what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
+                                      error_type="sem",
+                                      # wheather to plot the individual traces
+                                      plot_individual=plot_individual,
+                                      # the color of the individual traces (if shown)
+                                      noise_color='-c')
 
         # get cell idx per page
         cells_idx, btchs = get_idx_per_page(spots, group_tag, sort_by_sig=sort_by_sig)
@@ -452,7 +520,7 @@ class Reports:
                             pagesize=letter)
         # for each page
         for ibtch, btch in enumerate(btchs):
-            # refresh checkbox locations to be at the top, numbers fitted to match the plots (5,1)
+            # refresh checkbox locations to be at the top, numbers fitted to match the plots in the shape (5,1)
             X, Y, H = 10, 600, 122
             # add image
             can.drawImage(f"{tmp_folder}/signals_batch{ibtch}.png", 0, -600, width=650,
@@ -465,18 +533,17 @@ class Reports:
             can.showPage()
         can.save()
 
-    def prepare_group_images(self, spots, spot_tag, group_tag,tmp_folder,
-                     plot_type = "cycle",
-                     plot_type_tag = '',
+    def prepare_group_images(self, spots, spot_tag, group_tag, tmp_folder,
+                             plot_type="cycle",
+                             plot_type_tag='',
                              dpi=160,
-                     front_to_tail=0,
-                     time_points=None,
-                     vlines=None,
-                     signal_split=None,
-                     error_type="sem",
-                     noise_color='--c',
-                     plot_individual=False,
-                     sort_by_sig = False):
+                             front_to_tail=0,
+                             time_points=None,
+                             vlines=None,
+                             signal_split=None,
+                             error_type="sem",
+                             noise_color='--c',
+                             plot_individual=False):
         """
         plot_type: "psh_b" or "cycle" only
         """
@@ -486,21 +553,10 @@ class Reports:
         sp = SignalPlotter(significant_signals_dff, self.experiment)
 
         # some info on the cells to put into the title
-        cells_idx = spots.get_group_idx(spots.groups[group_tag])
-        cells_zyx = spots.get_group_centers(spots.groups[group_tag]).astype(np.int32)
-        cells_group = spots.get_group_info(["sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"],
-                                           group=spots.groups[group_tag])
-        cells_group = np.array([group_name.replace("sig", "") for group_name in cells_group])
-        signal_idx = np.arange(sp.n_signals)
-
-        if sort_by_sig:
-            # sort everything so that the cells with the most amount of significant stuff appear first
-            sorted_zip = sort_by_len0(zip(cells_group, cells_idx, cells_zyx, signal_idx))
-            cells_group = np.array([el[0] for el in sorted_zip])
-            cells_idx = np.array([el[1] for el in sorted_zip])
-            cells_zyx = np.array([el[2] for el in sorted_zip])
-            signal_idx = np.array([el[3] for el in sorted_zip])
-
+        cells_group, cells_idx, cells_zyx, signal_idx = self.prepare_spot_info(spots, group_tag, sort_by_sig=True,
+                                                                               groups_to_specify=["sig2v3", "sig2v5",
+                                                                                                  "sig3v5", "sig2vB",
+                                                                                                  "sig3vB", "sig5vB"])
         main_title = f"DFF signals, tscore image {spot_tag}, significance {group_tag}"
 
         if plot_type == "psh_0":
@@ -510,7 +566,6 @@ class Reports:
         # prepare the batches per page
         cells = np.arange(sp.n_signals)
         btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(sp.n_signals / tpp).astype(int)) * tpp]
-        pdfs = []
 
         for ibtch, btch in enumerate(btchs):
 
@@ -571,4 +626,3 @@ class Reports:
             filename = f'{tmp_folder}/signals_batch{ibtch}.png'
             plt.savefig(filename)
             plt.close()
-

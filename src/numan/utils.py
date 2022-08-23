@@ -150,12 +150,4 @@ def get_ax_limits(cycled, mean, e, plot_individual):
     return xmin, xmax, ymin, ymax
 
 
-def merge_pdfs(pdfs, filename):
-    """
-    Turns a bunch of separate figures (pdfs) into one prf.
-    """
-    mergeFile = PyPDF2.PdfFileMerger()
-    for pdf in pdfs:
-        mergeFile.append(PyPDF2.PdfFileReader(pdf, 'rb'))
-        os.remove(pdf)
-    mergeFile.write(filename)
+
