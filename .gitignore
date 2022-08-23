@@ -36,3 +36,25 @@ data/test/dff/
 data/test/t_score/
 
 data/test/diff/
+
+notebooks/data/v1.x.x/2vs3vs5/processed/dff_movie/
+
+notebooks/data/v1.x.x/2vs3vs5/processed/tscore_volumes/
+
+notebooks/data/v1.x.x/2vs3vs5/processed/
+
+notebooks/v1.x.x/individual_datasets/2vs3vs5/.ipynb_checkpoints/
+
+notebooks/v1.x.x/individual_datasets/2vs3vs5/in_progress/.ipynb_checkpoints/
+
+notebooks/v1.x.x/individual_datasets/2vs3vs5/tmax_pipeline/.ipynb_checkpoints/
+
+notebooks/v1.x.x/individual_datasets/1Pvs2P/.ipynb_checkpoints/
+
+notebooks/individual_datasets/2vs3vs5/old_version_notebooks/
+
+notebooks/v1.x.x/individual_datasets/1Pvs2P/
+
+notebooks/v1.x.x/individual_datasets/2vs3vs5/
+
+notebooks/data/v1.x.x/2vs3vs5/imaris/tscore_SvB_max_Statistics/
