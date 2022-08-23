@@ -18,15 +18,16 @@ classifiers=[
     'Operating System :: OS Independent'
 ]
 dependencies = [
-    'vodex >=1.0.1,<2.0.0',
+    'vodex >=1.0.2,<2.0.0',
     'pypdf2',
     'reportlab',
     'scipy',
+    'ipykernel'
 ]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-dev = ["bumpver","ipykernel"]
+dev = ["bumpver"]
 
 [project.urls] # Read The Docs will also go in here
 Homepage = "https://github.com/LemonJust/numan"
