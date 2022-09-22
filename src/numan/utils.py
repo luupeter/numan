@@ -6,8 +6,10 @@ import os
 import matplotlib.pyplot as plt
 import warnings
 from tqdm import tqdm
+import scipy.ndimage as nd
 import pandas as pd
 import PyPDF2
+
 
 
 def extract_windows(array, window_size):
@@ -127,6 +129,20 @@ def get_diff(movie1, movie2, absolute=False):
     return diff
 
 
+def gaussian_filter(movie, sigma):
+    """
+    Wrapper for scipy.ndimage gaussian_filter to use with 4D data.
+    movie : 4D movie: TZYX
+    sigma : gaussian filter parameters, ZYX order , in pixels
+    (from scipy : scalar or sequence of scalars Standard deviation for Gaussian kernel. The
+    standard deviations of the Gaussian filter are given for each axis as a sequence, or as a single number,
+    in which case it is equal for all axes.)
+    """
+    for iv, volume in enumerate(movie):
+        movie[iv] = nd.gaussian_filter(volume, sigma)
+    return movie
+
+
 def plot_errorbar(ax, mean, e, x=None, color='r'):
     if x is None:
         x = np.arange(len(mean))
@@ -148,6 +164,3 @@ def get_ax_limits(cycled, mean, e, plot_individual):
     xmax = cycled.shape[1] - 0.5
 
     return xmin, xmax, ymin, ymax
-
-
-

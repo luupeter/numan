@@ -679,11 +679,15 @@ class Preprocess:
     def __init__(self, experiment):
         self.experiment = experiment
 
-    def batch_dff(self, save_dir, batch_size, window_size, verbose=False):
+    def batch_dff(self, save_dir, batch_size, window_size, blur_sigma=None, verbose=False):
         """
         Creates 3D dff movie from raw 3D movie. Will only use full_volumes,
         so the number of frames in the resulting movie can be smaller than in the original.
 
+        :param blur_sigma: If not None, will apply gaussian blur in 3D with sigma = blur_sigma.
+                         Can be int - then the same sigma in all 3 directions is applied,
+                         or list [sz,sy,sx] for different sigma in ZYX.
+        :type blur_sigma: Union(int, list)
         :param save_dir: directory into which to save the dff movie in chunks
         :type save_dir: str
         :param batch_size: number of volumes to load at once
@@ -713,6 +717,8 @@ class Preprocess:
         for ich, chunk in enumerate(tqdm(chunks, disable=verbose)):
 
             data = self.experiment.load_volumes(chunk, verbose=False)
+            if blur_sigma is not None:
+                data = gaussian_filter(data, blur_sigma)
             dff_img, start_tp, end_tp = get_dff(data, window_size)
             t, z, y, x = dff_img.shape
 
@@ -739,6 +745,7 @@ class Preprocess:
             # exit cycle the first chunk you saw the end of the experiment
             if chunk[-1] == (n_volumes - 1):
                 break
+
 
 if __name__ == "__main__":
     pass
