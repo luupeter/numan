@@ -11,7 +11,6 @@ import pandas as pd
 import PyPDF2
 
 
-
 def extract_windows(array, window_size):
     """
     breaks ND array into windows along 0 dimention, starting from the begining and till the end.
@@ -143,10 +142,10 @@ def gaussian_filter(movie, sigma):
     return movie
 
 
-def plot_errorbar(ax, mean, e, x=None, color='r'):
+def plot_errorbar(ax, mean, e, x=None, color='r', edge_color=None):
     if x is None:
         x = np.arange(len(mean))
-    ax.errorbar(x, mean, yerr=e, fmt='o', color=color)
+    ax.errorbar(x, mean, yerr=e, fmt='o', color=color, markeredgecolor=edge_color)
     ax.plot(x, mean, color=color)
 
 
