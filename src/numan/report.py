@@ -20,7 +20,6 @@ from .plots import *
 from .analysis import Spots
 
 
-
 def merge_pdfs(pdfs, filename):
     """
     Turns a bunch of separate figures (pdfs) into one pdf.
@@ -327,6 +326,147 @@ class Reports:
 
         plt.savefig(pdf_filename)
         plt.close()
+
+    def make_covariate_reports(self,
+                               spot_tag, group_tag,
+                               annotation_type,
+                               conditions=None,
+                               plot_type="cycle",
+                               plot_type_tag='',
+                               forward_shift=0,
+                               plot_individual=False,
+                               groups_to_specify=("sig2v3", "sig2v5", "sig3v5", "sig2vB", "sig3vB", "sig5vB"),
+                               tmp_folder=None,
+                               pdf_filename=None):
+        """
+        Generates a pdf with the specified type of plots.
+
+        :param checkbox:
+        :type checkbox:
+        :param groups_to_specify:
+        :type groups_to_specify:
+        :param conditions:
+        :type conditions:
+        :param annotation_type:
+        :type annotation_type:
+        :param spot_tag: what set of spots to use. Chooses the spots*.json based on this.
+        :type spot_tag: str
+        :param group_tag: what spots group to use.
+        :type group_tag: str
+        :param plot_type: what plot to output ["cycle","psh_0","psh_b"]
+        :type plot_type: str
+        :param plot_type_tag: just for the pdf naming : this is to be able to distinguish
+                    the pdfs with the same plot type, but errors are different or raw traces on/off or front_to_tail...
+        :type plot_type_tag: str
+        :param forward_shift: forward_shift will shift the cycle by the set number of voxels
+                    so when set to 3, there are 3 blank volumes at the begining and at the end ...
+                    if set to 0, will have 6 leading blanks and will end right after the 5 dots (black bar)
+        :type forward_shift: int
+        :param time_points: only show certain timepoints from the signal, for example : only 2 dots.
+                    IF time_points is 2d array, will overlap traces along axis = 1.
+        :type time_points: numpy.array
+        :param vlines: draw vertical lines, locations (in volumes) where to draw vertical lines
+        :type vlines: list[int]
+        :param signal_split: how to break the lines in the plot, this is relevant to the displayed x axis
+        :type signal_split: numpy.array
+        :param error_type: what error type to use ( "sem" for SEM or "prc" for 5th - 95th percentile )
+        :type error_type: str
+        :param noise_color: the color of the individual traces (if shown)
+        :type noise_color: valid color definition
+        :param plot_individual: wheather to plot the individual traces
+        :type plot_individual: bool
+        :param tmp_folder: will store batch images in this folder before merging pdf,
+                    will be stored with reports if left None.
+        :type tmp_folder: Union(str, Path)
+        :param pdf_filename: the name of the pdf file to save, will be generated automatically if left None
+        :type pdf_filename: str
+
+        """
+        assert conditions is not None, "Conditions must not be None for psh-type plots"
+
+        # fill out the defaults
+        if tmp_folder is None:
+            # where to temporary store images while the code is running
+            tmp_folder = f"{self.project}/spots/reports/covariates/signals/"
+
+        if pdf_filename is None:
+            # filename to save pdf with all the significant traces
+            pdf_filename = f"{self.project}/spots/reports/covariates/signals/" \
+                           f"{plot_type}{plot_type_tag}_from_{spot_tag}_group_{group_tag}.pdf"
+
+        spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
+
+        # initialise the signal plotter with DFF signal
+        SLIDING_WINDOW = 15  # in volumes
+        print(f"Using sliding window {SLIDING_WINDOW} volumes for signal DFF")
+        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+
+        # choose traces per page
+        if plot_type == "psh_0":
+            tpp = 10  # traces per page
+            s_plotter = SignalPlotter(signals, self.experiment, annotation_type,
+                                      c_mean_color='w', c_noise_color='-m', c_edge_color='w')
+        else:
+            tpp = 5
+            s_plotter = SignalPlotter(signals, self.experiment, annotation_type,
+                                      c_mean_color='k', c_noise_color='-m', c_edge_color='w')
+
+        # prepare title info
+        cells_group, cells_idx, cells_zyx, signal_idx = self.prepare_spot_info(spots, group_tag,
+                                                                               s_plotter.n_traces,
+                                                                               sort_by_sig=True,
+                                                                               groups_to_specify=groups_to_specify)
+        main_title = f"DFF signals, tscore image {spot_tag}, group {group_tag}"
+
+        # prepare the batches per page
+        cells = np.arange(s_plotter.n_traces)
+        btchs = [cells[s: s + tpp] for s in np.arange(np.ceil(s_plotter.n_traces / tpp).astype(int)) * tpp]
+
+        plot_files = []
+
+        for ibtch, btch in enumerate(btchs):
+
+            if plot_type == "psh_0":
+                padding = [0]
+                # titles for the current batch
+                titles = [f"Cell {idx}, {group} \nXYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
+                          for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
+                s_plotter.make_covariate_psh_figure(signal_idx[btch],
+                                                    conditions, padding,
+                                                    main_title,
+                                                    titles,
+                                                    # what grid to use to show the points
+                                                    figure_layout=[5, 2],
+                                                    # figure parameters
+                                                    figsize=(10, 12),
+                                                    dpi=60,
+                                                    gridspec_kw={'hspace': 0.4, 'wspace': 0.3},
+                                                    # whether to plot the individual traces
+                                                    plot_individual=plot_individual, split=False)
+
+            if plot_type == "psh_b":
+                padding = [-2, -1, 0, 1, 2, 3, 4]
+                # titles for the current batch
+                titles = [f"Cell {idx}, {group} XYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
+                          for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
+                s_plotter.make_covariate_psh_figure(signal_idx[btch],
+                                                    conditions, padding,
+                                                    main_title,
+                                                    titles,
+                                                    # what grid to use to show the points
+                                                    figure_layout=[5, 1],
+                                                    # figure parameters
+                                                    figsize=(10, 12),
+                                                    dpi=60,
+                                                    # whether to plot the individual traces
+                                                    plot_individual=plot_individual)
+            plt.xlabel('Volume in cycle')
+            filename = f'{tmp_folder}signals_batch{ibtch}.pdf'
+            plt.savefig(filename)
+            plt.close()
+            plot_files.append(filename)
+
+        merge_pdfs(plot_files, pdf_filename)
 
 
 class CellMasks:

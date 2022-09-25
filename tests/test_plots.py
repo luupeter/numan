@@ -142,7 +142,7 @@ class TestSignalPlotterV2(unittest.TestCase):
     # initialise the signal plotter with DFF signal
     SLIDING_WINDOW = 15  # in volumes
     signals = spots.get_group_signals(spots.groups["sig2vB"]).as_dff(SLIDING_WINDOW)
-    s_plotter_v2 = SignalPlotterV2(signals, experiment, "number")
+    s_plotter_v2 = SignalPlotter(signals, experiment, "number")
 
     def test_get_labels_in_cycle(self):
         labels = ["d1"]
@@ -316,19 +316,19 @@ class TestSignalPlotterV2(unittest.TestCase):
         _ = self.s_plotter_v2.plot_covariates_psh(None, trace_id, conditions, padding,
                                                   split=False, plot_individual=False, show_plot=True)
 
-    def test_prepare_cycle(self):
-        trace_id = 0
-        trace = self.s_plotter_v2.get_trace(trace_id)
-        trace = self.s_plotter_v2.prepare_cycle(trace)
-        self.assertTupleEqual((7, 94), trace.shape)
-
-    def test_plot_cycles(self):
-        trace_id = 0
-        ax_limits = self.s_plotter_v2.plot_cycles(None, trace_id, show_plot=True)
-        self.s_plotter_v2.plot_cycles(None, trace_id, show_plot=True, forward_shift=3)
-        self.assertAlmostEqual(
-            [-0.5, 93.5, -0.004590296974461647, 0.039927868617393523],
-            ax_limits)
+    def test_make_covariate_psh_figure(self):
+        trace_ids = [0, 1, 2, 3, 4]
+        conditions = [
+            [("number", "d1"), ("shape", "cr")],
+            [("number", "d2"), ("shape", "cr")],
+            [("number", "d3"), ("shape", "cr")],
+            [("number", "d5"), ("shape", "cr")]
+        ]
+        padding = [-2, -1, 0, 1, 2, 3, 4]
+        _ = self.s_plotter_v2.make_covariate_psh_figure(trace_ids, conditions, padding,
+                                                        "Main title",
+                                                        ["0", "1", "2", "3", "4"],
+                                                        show_plot=True)
 
     def test_crop_and_pad(self):
         trace_id = 0
