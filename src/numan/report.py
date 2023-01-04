@@ -312,6 +312,8 @@ class Reports:
             figure_layout = [1, 3]
         elif len(labels) == 4:
             figure_layout = [2, 3]
+        elif len(labels) == 5:
+            figure_layout = [2, 5]
         else:
             raise Exception(f"Don't know how to plot when the number of labels is {len(labels)}")
 
