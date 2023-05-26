@@ -25,7 +25,9 @@ dependencies = [
     'ipykernel',
     'urllib3',
     'nbconvert',
-    'scipy'
+    'scipy',
+    'matplotlib',
+    'pandas'
 ]
 requires-python = ">=3.10"
 
