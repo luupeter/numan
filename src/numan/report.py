@@ -24,9 +24,9 @@ def merge_pdfs(pdfs, filename):
     """
     Turns a bunch of separate figures (pdfs) into one pdf.
     """
-    mergeFile = PyPDF2.PdfFileMerger()
+    mergeFile = PyPDF2.PdfMerger()
     for pdf in pdfs:
-        mergeFile.append(PyPDF2.PdfFileReader(pdf, 'rb'))
+        mergeFile.append(PyPDF2.PdfReader(pdf, 'rb'))
         os.remove(pdf)
     mergeFile.write(filename)
 
