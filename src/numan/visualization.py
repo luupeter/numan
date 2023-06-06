@@ -97,7 +97,7 @@ class SignalPlotter:
         :rtype:
         """
         # timing in volumes, since one volume is one time point of the signal
-        timing = (self.experiment.cycle.timing / self.experiment.volume_manager.fpv).astype(np.int)
+        timing = (self.experiment.cycle.timing / self.experiment.volume_manager.fpv).astype(int)
         # get condition name for each time point of the signal
         conditions = [cond for t, condition in zip(timing, self.experiment.cycle.conditions) for cond in
                       [condition.name] * t]

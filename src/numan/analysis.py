@@ -107,9 +107,9 @@ class Spot:
 
         r = d / 2  # radius
         # make sure diameter is odd: round to the next odd number
-        d = ((d // 2) * 2 + 1).astype(np.int)
+        d = ((d // 2) * 2 + 1).astype(int)
         # center at zero
-        c = (d // 2).astype(np.int)
+        c = (d // 2).astype(int)
         z = np.arange(d[0]) - c[0]
         y = np.arange(d[1]) - c[1]
         x = np.arange(d[2]) - c[2]
@@ -157,7 +157,7 @@ class Spot:
         shift = np.min(np.c_[shift, border], axis=1)
 
         # get the indices
-        idx = idx + shift.astype(np.int)
+        idx = idx + shift.astype(int)
 
         # remove the ones outside the boundary
         idx = idx[np.all(idx >= 0, axis=1), :]
