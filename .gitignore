@@ -60,3 +60,5 @@ notebooks/v1.x.x/individual_datasets/2vs3vs5/
 notebooks/data/v1.x.x/2vs3vs5/imaris/tscore_SvB_max_Statistics/
 
 notebooks/data/v1.x.x/2vs3vs5/test_output/
+
+data/test/
