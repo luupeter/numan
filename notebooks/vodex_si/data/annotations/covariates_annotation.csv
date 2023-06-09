@@ -1,0 +1,34 @@
+duration_volumes,duration_frames,name,group,description
+124,8308,ch,spread,equivalent convex hull
+124,8308,id,spread,equivalent inter-distance
+3,201,b,shape,"blank, shape doesn't apply"
+1,67,cr,shape,constant radius
+9,603,b,shape,"blank, shape doesn't apply"
+1,67,cr,shape,constant radius
+7,469,b,shape,"blank, shape doesn't apply"
+1,67,cr,shape,constant radius
+5,335,b,shape,"blank, shape doesn't apply"
+1,67,cr,shape,constant radius
+7,469,b,shape,"blank, shape doesn't apply"
+1,67,cr,shape,constant radius
+9,603,b,shape,"blank, shape doesn't apply"
+1,67,ta,shape,equivalent total area
+5,335,b,shape,"blank, shape doesn't apply"
+1,67,ta,shape,equivalent total area
+7,469,b,shape,"blank, shape doesn't apply"
+1,67,ta,shape,equivalent total area
+7,469,b,shape,"blank, shape doesn't apply"
+1,67,ta,shape,equivalent total area
+5,335,b,shape,"blank, shape doesn't apply"
+1,67,ta,shape,equivalent total area
+9,603,b,shape,"blank, shape doesn't apply"
+1,67,tp,shape,equivalent total perimeter
+9,603,b,shape,"blank, shape doesn't apply"
+1,67,tp,shape,equivalent total perimeter
+5,335,b,shape,"blank, shape doesn't apply"
+1,67,tp,shape,equivalent total perimeter
+9,603,b,shape,"blank, shape doesn't apply"
+1,67,tp,shape,equivalent total perimeter
+7,469,b,shape,"blank, shape doesn't apply"
+1,67,tp,shape,equivalent total perimeter
+6,402,b,shape,"blank, shape doesn't apply"
