@@ -13,6 +13,11 @@ from tqdm import tqdm
 import pandas as pd
 import PyPDF2
 
+try:
+    import ants
+except ImportError:
+    print("ants not installed, some registration will not work")
+
 from .utils import *
 
 
@@ -354,12 +359,12 @@ class Signals:
         if error_type == "prc":
             # error bars : 5 to 95 th percentile around the median
             e = np.r_[np.expand_dims(mean - np.percentile(cycled, 5, axis=0), axis=0),
-                      np.expand_dims(np.percentile(cycled, 95, axis=0) - mean, axis=0)]
+            np.expand_dims(np.percentile(cycled, 95, axis=0) - mean, axis=0)]
         elif error_type == "sem":
             # error bars : sem around hte mean
             sem = np.std(cycled, axis=0, ddof=1) / np.sqrt(cycled.shape[0])
             e = np.r_[np.expand_dims(sem, axis=0),
-                      np.expand_dims(sem, axis=0)]
+            np.expand_dims(sem, axis=0)]
         else:
             e = None
 
@@ -678,6 +683,122 @@ class Preprocess:
 
     def __init__(self, experiment):
         self.experiment = experiment
+
+    def remove_offset(self, save_dir, batch_size, offset_img=None, offset_file=None, verbose=False):
+        """
+        Denoises the raw movie by subtracting the offset image.
+        The offset image can be prepared using coscmos package.
+        """
+        assert offset_img is not None or offset_file is not None, \
+            "Either offset_img or offset_file should be provided"
+        assert not (offset_img is not None and offset_file is not None), \
+            "Only one of offset_img or offset_file should be provided"
+        if offset_img is None:
+            offset_img = imread(offset_file)
+
+        # Split the volumes into chunks of the defined size that will be loaded into RAM at once
+        chunks = self.experiment.batch_volumes(batch_size, full_only=True)
+        tot_volumes = 0
+        n_full_volumes = self.experiment.n_full_volumes
+        for ichunk, chunk in enumerate(chunks):
+            data = self.experiment.load_volumes(chunk, verbose=False)
+            data = data - offset_img
+            nt, z, y, x = data.shape
+
+            # make sure the output is positive:
+            min_value = data.min()
+            if min_value < 0:
+                warnings.warn(f"Some image values belov zero after subtracting the offset image. "
+                              f"Will be set to zero.")
+                data[data < 0] = 0
+
+            # write image
+            imwrite(f'{save_dir}/removed_offset_movie_{ichunk:04d}.tif',
+                    data.astype(np.int16), shape=(nt, z, y, x),
+                    metadata={'axes': 'TZYX'}, imagej=True)
+
+            if verbose:
+                tot_volumes = tot_volumes + nt
+                print(f"written volumes : {tot_volumes}, out of {n_full_volumes} full volumes")
+
+    def drift_correct_naive(self, save_dir, batch_size, spacing_xyz, template = 0, 
+                            registration_type = "Rigid", volumes = None, verbose=False):
+        """
+        Performs drift correction using ANTs library for registration. 
+        template can be an int (a frame to register to), or a 3D numpy array.
+        If template is not provided, the first volume will be used as a template.
+        if volumes is not None, then only the volumes in the list will be registered.
+        """
+        def _register(moving_image, fixed_image, spacing, registration_type, outprefix = None):
+
+            # if fixed image in not ants image, convert it
+            if not isinstance(fixed_image, ants.core.ants_image.ANTsImage):
+                print("Converting fixed image to ants image")
+                fixed_image = ants.from_numpy(np.transpose(fixed_image.astype(float), axes=[2,1,0]), 
+                                    spacing=spacing) # spacing in xyz order
+                
+            moving_image = ants.from_numpy(np.transpose(moving_image.astype(float), axes=[2,1,0]), 
+                                spacing=spacing)
+            
+            # run the registration and save verbowe to file
+            rr = ants.registration(
+                                    fixed=fixed_image,
+                                    moving=moving_image,
+                                    type_of_transform=registration_type, 
+                                    verbose  = False,
+                                    outprefix = outprefix,
+                                )
+            return rr['warpedmovout'].numpy().astype(np.int16).transpose((2,1,0))
+
+        # prepare frames to register
+        n_full_volumes = self.experiment.n_full_volumes
+        if volumes is not None:
+            volumes = np.array(volumes)
+            assert volumes.max() < n_full_volumes,\
+                  f"Some volumes are outside of the experiment with {n_full_volumes} full volumes" 
+            assert volumes.min() >= 0, "volumes must be positive integers"
+            n_reguested_volumes = len(volumes)
+        else:
+            volumes = np.arange(n_full_volumes)
+            n_reguested_volumes = n_full_volumes
+
+        # if template is not an array, get template volume
+        if isinstance(template, int):
+            assert template < n_full_volumes, f"Template frame {template} is outside of the experiment with {n_full_volumes} full volumes"
+            assert template >= 0, "Template frame must be a positive integer"
+            template = self.experiment.load_volumes([template], verbose=False)[0]
+        # turn template into ants image
+        template = ants.from_numpy(np.transpose(template.astype(float), axes=[2,1,0]), 
+                                    spacing=spacing_xyz) # spacing in xyz order
+        
+        # load in batches and process volume by volume
+        chunks = self.experiment.batch_volumes(batch_size, volumes= volumes, full_only=True)
+        # create a directory for the transforms
+        os.makedirs(f'{save_dir}/transforms', exist_ok=True)
+        tot_volumes = 0
+        for ichunk, chunk in enumerate(chunks):
+            corrected = []
+            for volume in chunk:
+                # load the volume
+                volume_img = self.experiment.load_volumes([volume], verbose=False)[0]
+                # register
+                outprefix = f'{save_dir}/transforms/volume_{volume:04d}'
+                volume_img = _register(volume_img, template, spacing_xyz, registration_type, 
+                                       outprefix = outprefix)
+                corrected.append(volume_img)
+            corrected = np.array(corrected)
+            nt, z, y, x = corrected.shape
+            # save 
+            imwrite(f'{save_dir}/drift_corrected_movie_{ichunk:04d}.tif',
+                    corrected.astype(np.int16), shape=(nt, z, y, x),
+                    metadata={'axes': 'TZYX'}, imagej=True)
+            if verbose:
+                tot_volumes = tot_volumes + nt
+                print(f"written volumes : {tot_volumes}, out of {n_reguested_volumes} requested volumes")
+
+
+
+
 
     def batch_dff(self, save_dir, batch_size, window_size, blur_sigma=None, verbose=False):
         """
