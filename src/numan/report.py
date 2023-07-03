@@ -252,7 +252,7 @@ class Reports:
                                           plot_individual=plot_individual, split=False)
 
             if plot_type == "psh_b":
-                padding = [-2, -1, 0, 1, 2, 3, 4]
+                padding = [-3, -2, -1, 0, 1, 2, 3, 4, 5]
                 # titles for the current batch
                 titles = [f"Cell {idx}, {group} XYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
                           for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
@@ -447,7 +447,7 @@ class Reports:
                                                     plot_individual=plot_individual, split=False)
 
             if plot_type == "psh_b":
-                padding = [-2, -1, 0, 1, 2, 3, 4]
+                padding = [-3, -2, -1, 0, 1, 2, 3, 4, 5]
                 # titles for the current batch
                 titles = [f"Cell {idx}, {group} XYZ : {zyx[2]},{zyx[1]},{zyx[0]} (voxel) "
                           for idx, group, zyx in zip(cells_idx[btch], cells_group[btch], cells_zyx[btch])]
