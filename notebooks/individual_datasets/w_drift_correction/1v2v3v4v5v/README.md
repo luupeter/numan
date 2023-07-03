@@ -10,7 +10,7 @@ You will be able to choose this enviroment as your kernel from Jupyter Notebook 
 
 After you have installed WSL, follow the instructions here:
 
-Requires numan version 1.0.6, and vodex version 1.0.19
+Requires numan version 1.0.7, and vodex version 1.0.19
 upgrade the packages if you have older versions with :
 ```
 pip install --upgrade vodex
@@ -21,7 +21,7 @@ If you are using conda:
 ```
 conda create -n numan python=3.10
 conda activate numan
-pip install numan==1.0.6
+pip install numan==1.0.7
 ```
 ***You also need to install ANTs separately by running:***
 ```
