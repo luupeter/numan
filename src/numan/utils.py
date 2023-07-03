@@ -55,10 +55,22 @@ def get_baseline(array, window_size, percentile):
 
     return baseline, start, end
 
+def check_baseline_not_zero(baseline):
+    """
+    Checks if baseline is zero, if so, sets it to 10^(-6)
+    """
+    b_zero = baseline == 0
+    if np.sum(b_zero) > 0:
+        warnings.warn(f"{np.sum(b_zero)} baseline values are zero.\n"
+                      f"Setting these values to 10^(-6) to avoid dividing by zero.")
+        baseline[b_zero] = 10 ^ (-6)
+
+    return baseline
+
 
 def get_dff(array, window_size):
     """
-    subtracts average baseline from an ND array along the 0 dimention.
+    subtracts 8th percentile baseline from an ND array along the 0 dimention.
     window_size must be an odd number.
 
     The baseline for the first and the last window//2 elements is the same :
@@ -68,13 +80,38 @@ def get_dff(array, window_size):
     baseline, start, end = get_baseline(array, window_size, percentile)
 
     # not to divide by zero:
-    b_zero = baseline == 0
-    if np.sum(b_zero) > 0:
-        warnings.warn(f"{np.sum(b_zero)} baseline values are zero.\n"
-                      f"Setting these values to 10^(-6) to avoid dividing by zero.")
-        baseline[b_zero] = 10 ^ (-6)
+    baseline = check_baseline_not_zero(baseline)
 
     return (array - baseline) / baseline, start, end
+
+def get_dff_in_steps(array, step_size, baseline_volumes):
+    """
+    Subtracts baseline calculated for each step from an ND array along the 0 dimention and divides by baseline.
+
+    Args:
+        array (NumpyArray): 4D array (TZYX) to calculate dff for
+        step_size (int): number of volumes to correct for a single baseline
+        baseline_volumes (List[int]): number of volumes to average for baseline inside each step, 
+            for example [0,1,2] will  average the first 3 volumes inside each step to calculate baseline.
+    """
+    #split array into steps of step_size volumes each
+    n_crops = array.shape[0]//step_size
+
+    #calculate baseline for each step
+    baseline = np.zeros(array.shape)
+    for i in range(n_crops):
+        from_idx = i*step_size
+        to_idx = (i+1)*step_size
+        baseline[from_idx:to_idx] = np.mean(array[from_idx:to_idx][baseline_volumes], axis=0)
+    # not to divide by zero:
+    baseline = check_baseline_not_zero(baseline)
+
+    return (array - baseline) / baseline, baseline
+
+
+
+    
+
 
 
 def get_t_score(movie1, movie2, absolute=True):

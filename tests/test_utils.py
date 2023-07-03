@@ -36,3 +36,24 @@ class TestGaussianFilter(unittest.TestCase):
         imwrite(f'{self.save_dir}/three_volumes_blurred.tif',
                 three_first_volumes.astype(np.uint16), shape=(3, 52, 468, 500),
                 metadata={'axes': 'TZYX'}, imagej=True)
+
+class TestGetDffInSteps(unittest.TestCase):
+    array = np.ones((10, 2, 2))
+    array[:, 0, 0] = [2, 2, 4, 2, 2, 3, 3, 6, 3, 3]
+    step_size = 5
+    baseline_volumes = [0, 1]
+
+    def test_get_dff_in_steps(self):
+        dff, baseline = get_dff_in_steps(self.array, self.step_size, self.baseline_volumes)
+
+        true_baseline = np.ones((10, 2, 2))
+        true_baseline[:, 0, 0] = [2, 2, 2, 2, 2, 3, 3, 3, 3, 3]
+
+        true_dff = np.zeros((10, 2, 2))
+        true_dff[:, 0, 0] = [0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
+
+        assert np.array_equal(baseline, true_baseline)
+        assert np.array_equal(dff, true_dff)
+
+if __name__ == '__main__':
+    unittest.main()
