@@ -7,4 +7,4 @@ from .report import *
 from .runner import *
 
 # Version of the numan package
-__version__ = "1.0.5"
+__version__ = "1.0.6"

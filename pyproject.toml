@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "numan"
-version = "1.0.5"
+version = "1.0.6"
 description='numerosity analysis package'
 readme = "README.md"
 authors = [{ name = "Anna Nadtochiy", email = "nadtochi@usc.edu" }]
@@ -18,7 +18,7 @@ classifiers=[
     'Operating System :: OS Independent'
 ]
 dependencies = [
-    'vodex >=1.0.18,<2.0.0',
+    'vodex >=1.0.19,<2.0.0',
     'pypdf2',
     'reportlab',
     'scipy',
@@ -38,7 +38,7 @@ dev = ["bumpver"]
 Homepage = "https://github.com/LemonJust/numan"
 
 [tool.bumpver]
-current_version = "1.0.5"
+current_version = "1.0.6"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = false
