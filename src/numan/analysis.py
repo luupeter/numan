@@ -208,14 +208,29 @@ class Signals:
     def change_fs(self, fps):
         self.fps = fps
 
-    def as_dff(self, window_size):
+    def as_dff(self, method="step", window_size=None, step_size=None, baseline_volumes=None):
         """
         Returns dff of the design_matrix, the beginning of the proper measurement and the end
         ( such measurement that used the whole window for definition of baseline )
+
+        method : "step" or "sliding" - how to calculate the baseline
+            ( step - one value for the whole window, sliding - a value for each time point )
+        window_size : int, size of the window in volumes, used for baseline calculation if method = "sliding"
+        step_size : int, step size in volumes, used for baseline calculation if method = "step"
+        baseline_volumes : list of ints, volumes to use for baseline calculation if method = "step"
         """
         assert self.traces_type == "raw", f"Can't apply dff: " \
-                                          f"the signals have already been processed, these are {self.traces_type} signals"
-        dff, start, end = get_dff(self.traces, window_size)
+                                          f"the signals have already been processed, " \
+                                          f"these are {self.traces_type} signals"
+        if method == "sliding":
+            assert window_size is not None, "window_size should be provided for sliding baseline calculation"
+            dff, start, end = get_dff(self.traces, window_size)
+        elif method == "step":
+            assert step_size is not None, "step_size should be provided for step baseline calculation"
+            assert baseline_volumes is not None, "baseline_volumes should be provided for step baseline calculation"
+            dff, baseline = get_dff_in_steps(self.traces, step_size, baseline_volumes)
+        else:
+            raise AssertionError("method should be 'sliding' or 'step'")
 
         return Signals(dff, traces_type="dff")
 
@@ -225,12 +240,13 @@ class Signals:
         """
         assert self.traces_type == "raw", f"Can't apply dff: " \
                                           f"the signals have already been processed, these are {self.traces_type} signals"
+        import scipy.signal as signal
 
         def butter_highpass(cutoff, fps, order=5):
             # calculate the numerator and denominator coefficient vectors of the filter
             nyq = 0.5 * fps
             normal_cutoff = cutoff / nyq
-            b, a = signal.butter(order, normal_cutoff, btype="high", analog=False)
+            b, a = signal.butter(order, normal_cutoff, btype="high", analog=False, output='ba')
             return b, a
 
         def butter_highpass_filter(data, cutoff, fps, order=5):
@@ -685,7 +701,7 @@ class Preprocess:
     def __init__(self, experiment):
         self.experiment = experiment
 
-    def remove_offset(self, save_dir, batch_size, volumes = None, offset_img=None, offset_file=None, verbose=False):
+    def remove_offset(self, save_dir, batch_size, volumes=None, offset_img=None, offset_file=None, verbose=False):
         """
         Denoises the raw movie by subtracting the offset image.
         The offset image can be prepared using coscmos package.
@@ -702,7 +718,7 @@ class Preprocess:
         # if volumes are not provided, will use all the full volumes
         # if volumes are provided, will only process the requested volumes
         chunks = self.experiment.batch_volumes(batch_size, volumes=volumes, full_only=True)
-        
+
         if verbose:
             tot_volumes = 0
             n_requested_volumes = self.experiment.n_full_volumes
@@ -730,9 +746,9 @@ class Preprocess:
                 tot_volumes = tot_volumes + nt
                 print(f"written volumes : {tot_volumes}, out of {n_requested_volumes} full volumes")
 
-    def drift_correct_naive(self, save_dir, batch_size, spacing_xyz, template = 0, 
-                            registration_type = "Rigid", volumes = None, verbose=False, 
-                            ants_kwargs = {}):
+    def drift_correct_naive(self, save_dir, batch_size, spacing_xyz, template=0,
+                            registration_type="Rigid", volumes=None, verbose=False,
+                            ants_kwargs={}):
         """
         Performs drift correction using ANTs library for registration. 
         template can be an int (a frame to register to), or a 3D numpy array.
@@ -756,36 +772,37 @@ class Preprocess:
                  so don't try to include keywords fixed, moving, type_of_transform, verbose and outprefix in the dictionary.
                  3. The dictionary can not have values that aren't in the ants.registration function.
         """
-        def _register(moving_image, fixed_image, spacing, registration_type, outprefix = None):
+
+        def _register(moving_image, fixed_image, spacing, registration_type, outprefix=None):
 
             # if fixed image in not ants image, convert it
             if not isinstance(fixed_image, ants.core.ants_image.ANTsImage):
                 print("Converting fixed image to ants image")
-                fixed_image = ants.from_numpy(np.transpose(fixed_image.astype(float), axes=[2,1,0]), 
-                                    spacing=spacing) # spacing in xyz order
-                
-            moving_image = ants.from_numpy(np.transpose(moving_image.astype(float), axes=[2,1,0]), 
-                                spacing=spacing)
-            
+                fixed_image = ants.from_numpy(np.transpose(fixed_image.astype(float), axes=[2, 1, 0]),
+                                              spacing=spacing)  # spacing in xyz order
+
+            moving_image = ants.from_numpy(np.transpose(moving_image.astype(float), axes=[2, 1, 0]),
+                                           spacing=spacing)
+
             # run the registration and save verbose to file
             rr = ants.registration(
-                                    fixed=fixed_image,
-                                    moving=moving_image,
-                                    type_of_transform=registration_type, 
-                                    verbose  = False,
-                                    outprefix = outprefix,
-                                    **ants_kwargs
-                                )
-            return rr['warpedmovout'].numpy().astype(np.int16).transpose((2,1,0))
-        
-        def _register_batch(batch, template, spacing, registration_type, outprefix = None):
+                fixed=fixed_image,
+                moving=moving_image,
+                type_of_transform=registration_type,
+                verbose=False,
+                outprefix=outprefix,
+                **ants_kwargs
+            )
+            return rr['warpedmovout'].numpy().astype(np.int16).transpose((2, 1, 0))
+
+        def _register_batch(batch, template, spacing, registration_type, outprefix=None):
             corrected = []
             for volume in batch:
                 # load the volume
                 volume_img = self.experiment.load_volumes([volume], verbose=False)[0]
                 # register
-                volume_img = _register(volume_img, template, spacing, registration_type, 
-                                       outprefix = outprefix)
+                volume_img = _register(volume_img, template, spacing, registration_type,
+                                       outprefix=outprefix)
                 corrected.append(volume_img)
             corrected = np.array(corrected)
             return corrected
@@ -794,8 +811,8 @@ class Preprocess:
         n_full_volumes = self.experiment.n_full_volumes
         if volumes is not None:
             volumes = np.array(volumes)
-            assert volumes.max() < n_full_volumes,\
-                  f"Some volumes are outside of the experiment with {n_full_volumes} full volumes" 
+            assert volumes.max() < n_full_volumes, \
+                f"Some volumes are outside of the experiment with {n_full_volumes} full volumes"
             assert volumes.min() >= 0, "volumes must be positive integers"
             n_reguested_volumes = len(volumes)
         else:
@@ -808,29 +825,32 @@ class Preprocess:
             assert template >= 0, "Template frame must be a positive integer"
             template = self.experiment.load_volumes([template], verbose=False)[0]
         # turn template into ants image
-        template = ants.from_numpy(np.transpose(template.astype(float), axes=[2,1,0]), 
-                                    spacing=spacing_xyz) # spacing in xyz order
-        
+        template = ants.from_numpy(np.transpose(template.astype(float), axes=[2, 1, 0]),
+                                   spacing=spacing_xyz)  # spacing in xyz order
+
         # if mask and moving_mask are in ants_kwargs, convert them to ants images
         # and if they are string or pthlib.Path, load them as numpy arrays first
         if 'mask' in ants_kwargs:
             if isinstance(ants_kwargs['mask'], str) or isinstance(ants_kwargs['mask'], Path):
-                ants_kwargs['mask'] = ants.from_numpy(np.transpose(imread(ants_kwargs['mask']).astype(float), axes=[2,1,0]), 
-                                    spacing=spacing_xyz)
+                ants_kwargs['mask'] = ants.from_numpy(
+                    np.transpose(imread(ants_kwargs['mask']).astype(float), axes=[2, 1, 0]),
+                    spacing=spacing_xyz)
             elif isinstance(ants_kwargs['mask'], np.ndarray):
-                ants_kwargs['mask'] = ants.from_numpy(np.transpose(ants_kwargs['mask'].astype(float), axes=[2,1,0]), 
-                                    spacing=spacing_xyz)
+                ants_kwargs['mask'] = ants.from_numpy(np.transpose(ants_kwargs['mask'].astype(float), axes=[2, 1, 0]),
+                                                      spacing=spacing_xyz)
 
         if 'moving_mask' in ants_kwargs:
             if isinstance(ants_kwargs['moving_mask'], str) or isinstance(ants_kwargs['moving_mask'], Path):
-                ants_kwargs['moving_mask'] = ants.from_numpy(np.transpose(imread(ants_kwargs['moving_mask']).astype(float), axes=[2,1,0]), 
-                                    spacing=spacing_xyz)
+                ants_kwargs['moving_mask'] = ants.from_numpy(
+                    np.transpose(imread(ants_kwargs['moving_mask']).astype(float), axes=[2, 1, 0]),
+                    spacing=spacing_xyz)
             elif isinstance(ants_kwargs['moving_mask'], np.ndarray):
-                ants_kwargs['moving_mask'] = ants.from_numpy(np.transpose(ants_kwargs['moving_mask'].astype(float), axes=[2,1,0]), 
-                                    spacing=spacing_xyz)
-        
+                ants_kwargs['moving_mask'] = ants.from_numpy(
+                    np.transpose(ants_kwargs['moving_mask'].astype(float), axes=[2, 1, 0]),
+                    spacing=spacing_xyz)
+
         # load in batches and process volume by volume
-        chunks = self.experiment.batch_volumes(batch_size, volumes= volumes, full_only=True)
+        chunks = self.experiment.batch_volumes(batch_size, volumes=volumes, full_only=True)
         # create a directory for the transforms
         os.makedirs(f'{save_dir}/transforms', exist_ok=True)
 
@@ -839,7 +859,7 @@ class Preprocess:
             # register the chunk
             outprefix = f'{save_dir}/transforms/volume_{chunk[0]:04d}'
             corrected = _register_batch(chunk, template, spacing_xyz, registration_type,
-                                        outprefix = outprefix)
+                                        outprefix=outprefix)
             # save 
             nt, z, y, x = corrected.shape
             imwrite(f'{save_dir}/drift_corrected_movie_{ichunk:04d}.tif',
@@ -848,7 +868,6 @@ class Preprocess:
             if verbose:
                 tot_volumes = tot_volumes + nt
                 print(f"written volumes : {tot_volumes}, out of {n_reguested_volumes} requested volumes")
-
 
     def batch_dff_sliding_window(self, save_dir, batch_size, window_size, blur_sigma=None, verbose=False):
         """
@@ -918,7 +937,7 @@ class Preprocess:
                 break
 
     def calculate_dff(self, save_dir, batch_size, step_size, baseline_volumes,
-                      resolution_xyz = [1, 1, 1], blur_sigma=None, 
+                      resolution_xyz=[1, 1, 1], blur_sigma=None,
                       verbose=False, save_baseline=False):
         """
         Creates 3D dff movie from raw 3D movie by processing movie in steps. Will only use full_volumes,
@@ -941,7 +960,7 @@ class Preprocess:
         assert batch_size % step_size == 0, "batch_size must be multiple of step_size"
 
         if save_baseline:
-            #create directory for baseline
+            # create directory for baseline
             os.makedirs(f'{save_dir}/baseline', exist_ok=True)
 
         # will only use full volumes
@@ -952,7 +971,7 @@ class Preprocess:
         # will multiply dff image by this value for better visualisation later
         SCALE = 1000
 
-        #create chunks
+        # create chunks
         chunks = self.experiment.batch_volumes(batch_size, volumes=volume_list, full_only=True)
 
         for ich, chunk in enumerate(tqdm(chunks, disable=verbose)):
@@ -981,13 +1000,16 @@ class Preprocess:
                               f" min: {min_value}, max: {max_value}")
             # write dff image
             imwrite(f'{save_dir}/dff_movie_{ich:04d}.tif', (dff_img * SCALE).astype(np.int16), shape=(t, z, y, x),
-                    resolution=(1./resolution_xyz[0], 1./resolution_xyz[1]), metadata={'spacing': resolution_xyz[2], 'unit': 'um','axes': 'TZYX'}, 
+                    resolution=(1. / resolution_xyz[0], 1. / resolution_xyz[1]),
+                    metadata={'spacing': resolution_xyz[2], 'unit': 'um', 'axes': 'TZYX'},
                     imagej=True)
             if save_baseline:
                 # print(f"Baseline shape{baseline_img.shape}")
                 # write baseline image
-                imwrite(f'{save_dir}/baseline/baseline_movie_{ich:04d}.tif', baseline_img.astype(np.int16), shape=(t, z, y, x),
-                        resolution=(1./resolution_xyz[0], 1./resolution_xyz[1]), metadata={'spacing': resolution_xyz[2], 'unit': 'um','axes': 'TZYX'}, 
+                imwrite(f'{save_dir}/baseline/baseline_movie_{ich:04d}.tif', baseline_img.astype(np.int16),
+                        shape=(t, z, y, x),
+                        resolution=(1. / resolution_xyz[0], 1. / resolution_xyz[1]),
+                        metadata={'spacing': resolution_xyz[2], 'unit': 'um', 'axes': 'TZYX'},
                         imagej=True)
 
             if verbose:
