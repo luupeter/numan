@@ -110,6 +110,7 @@ class Reports:
     def make_signal_reports(self,
                             spot_tag, group_tag,
                             annotation_type,
+                            dff_param,
                             labels=None,
                             plot_type="cycle",
                             plot_type_tag='',
@@ -130,6 +131,9 @@ class Reports:
         :type labels:
         :param annotation_type:
         :type annotation_type:
+        :param dff_param: parameters for dff calculation (see Signals.as_dff).
+            For example {"method":"sliding", "window":15} or {"method":"step", "step_size":9, "baseline_volumes": [0,1,2]}
+        :type dff_param: dict
         :param spot_tag: what set of spots to use. Chooses the spots*.json based on this.
         :type spot_tag: str
         :param group_tag: what spots group to use.
@@ -163,6 +167,8 @@ class Reports:
         :type pdf_filename: str
 
         """
+        if plot_type == "cycle":
+            assert dff_param["method"] == "sliding", "Cycle plots only work with sliding dff"
         if plot_type == "psh_0" or plot_type == "psh_b":
             assert labels is not None, "Labels must not be None for psh-type plots"
 
@@ -188,9 +194,8 @@ class Reports:
         spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
 
         # initialise the signal plotter with DFF signal
-        SLIDING_WINDOW = 15  # in volumes
-        print(f"Using sliding window {SLIDING_WINDOW} volumes for signal DFF")
-        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+        print(f"Using the following parameters for signal DFF: {dff_param}")
+        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(**dff_param)
         s_plotter = SignalPlotter(signals, self.experiment, annotation_type)
 
         # prepare title info
@@ -285,6 +290,7 @@ class Reports:
     def make_avg_intensity_reports(self,
                                    spot_tag, group_tag,
                                    annotation_type,
+                                   dff_param,
                                    labels,
                                    number_cells=False,
                                    plot_type_tag='',
@@ -299,9 +305,8 @@ class Reports:
         cells_idx = spots.get_group_idx(spots.groups[group_tag])
 
         # initialise the signal plotter with DFF signal
-        SLIDING_WINDOW = 15  # in volumes
-        print(f"Using sliding window {SLIDING_WINDOW} volumes for signal DFF")
-        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+        print(f"Using the following parameters for signal DFF: {dff_param}")
+        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(**dff_param)
         s_plotter = SignalPlotter(signals, self.experiment, annotation_type)
 
         # prepare title info
@@ -332,6 +337,7 @@ class Reports:
     def make_covariate_reports(self,
                                spot_tag, group_tag,
                                annotation_type,
+                               dff_param,
                                conditions=None,
                                plot_type="cycle",
                                plot_type_tag='',
@@ -384,6 +390,9 @@ class Reports:
         :type pdf_filename: str
 
         """
+        if plot_type == "cycle":
+            assert dff_param["method"] == "sliding", "Cycle plots only work with sliding dff"
+
         assert conditions is not None, "Conditions must not be None for psh-type plots"
 
         # fill out the defaults
@@ -399,9 +408,8 @@ class Reports:
         spots = Spots.from_json(f"{self.project}/spots/signals/spots_{spot_tag}.json")
 
         # initialise the signal plotter with DFF signal
-        SLIDING_WINDOW = 15  # in volumes
-        print(f"Using sliding window {SLIDING_WINDOW} volumes for signal DFF")
-        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(SLIDING_WINDOW)
+        print(f"Using the following parameters for signal DFF: {dff_param}")
+        signals = spots.get_group_signals(spots.groups[group_tag]).as_dff(**dff_param)
 
         # choose traces per page
         if plot_type == "psh_0":
