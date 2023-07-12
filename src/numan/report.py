@@ -9,7 +9,7 @@ from tqdm import tqdm
 import pandas as pd
 
 import PyPDF2
-from PyPDF2 import PdfFileReader
+from PyPDF2 import PdfReader
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.colors import white, black
@@ -499,8 +499,8 @@ class CellMasks:
         """get checked boxes from pdf"""
 
         f = open(filename, "rb")
-        group_pdf = PyPDF2.PdfFileReader(f)
-        fields = group_pdf.getFields()
+        group_pdf = PyPDF2.PdfReader(f)
+        fields = group_pdf.get_fields()
         spots_in_group = np.array([spot for spot in fields if
                                    fields[spot]['/V'] == '/Yes']).astype(int)
         f.close()
